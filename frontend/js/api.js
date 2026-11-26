@@ -4,7 +4,7 @@
  */
 const IS_LOCAL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
 const API_BASE = localStorage.getItem('custom_api_base')
-    || (IS_LOCAL ? 'http://localhost:8080/api' : 'https://sales-analytics-api.onrender.com/api');
+    || (IS_LOCAL ? 'http://localhost:8080/api' : 'https://sales-analytics-enterprise.onrender.com/api');
 
 const SalesAPI = {
     // 0. Authentication & Tokens
