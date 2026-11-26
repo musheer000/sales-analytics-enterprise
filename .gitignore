@@ -1,0 +1,23 @@
+# Build & Compiled Artifacts
+target/
+*.jar
+*.war
+*.ear
+*.class
+
+# Logs & Temp
+*.log
+logs/
+tmp/
+
+# Environment & Secrets
+.env
+.env.local
+.env.*.local
+
+# IDE & OS
+.idea/
+.vscode/
+*.iml
+.DS_Store
+Thumbs.db

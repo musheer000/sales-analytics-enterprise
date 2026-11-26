@@ -1,0 +1,1187 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sales Analytics — Enterprise</title>
+  <link rel="icon" type="image/png" href="assets/logo.png?v=20261126_v11">
+  <link rel="stylesheet" href="css/styles.css?v=20261126_v11">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+</head>
+<body>
+<div class="app-shell">
+
+  <!-- ═══════════════════════════════ SIDEBAR ═══════════════════════════════ -->
+  <aside class="sidebar" id="appSidebar">
+    <!-- Brand -->
+    <div class="sidebar-brand">
+      <div class="brand-icon brand-icon--logo" title="Sales Analytics Enterprise">
+        <img src="assets/logo.png?v=20261126_v11" alt="Sales Analytics Logo" class="brand-logo-img">
+      </div>
+      <div class="brand-text">
+        <span class="brand-name">Sales Analytics</span>
+        <span class="brand-sub">Enterprise System</span>
+      </div>
+    </div>
+
+    <!-- Navigation -->
+    <nav class="sidebar-nav">
+      <div class="nav-section-label">Main</div>
+      <button class="nav-item active" data-tab="dashboard">
+        <span class="nav-icon"><i data-lucide="layout-dashboard"></i></span>
+        <span class="nav-label">Dashboard</span>
+        <span class="nav-active-bar"></span>
+      </button>
+      <button class="nav-item" data-tab="categories">
+        <span class="nav-icon"><i data-lucide="folder-kanban"></i></span>
+        <span class="nav-label">Categories</span>
+      </button>
+      <button class="nav-item" data-tab="products">
+        <span class="nav-icon"><i data-lucide="package"></i></span>
+        <span class="nav-label">Products Catalog</span>
+      </button>
+      <button class="nav-item" data-tab="sales">
+        <span class="nav-icon"><i data-lucide="shopping-cart"></i></span>
+        <span class="nav-label">Sales &amp; Orders</span>
+      </button>
+      <button class="nav-item" data-tab="customers">
+        <span class="nav-icon"><i data-lucide="users"></i></span>
+        <span class="nav-label">Customers</span>
+      </button>
+      <div class="nav-divider"></div>
+      <div class="nav-section-label">Reports</div>
+      <button class="nav-item" data-tab="analytics">
+        <span class="nav-icon"><i data-lucide="area-chart"></i></span>
+        <span class="nav-label">Advanced Reports</span>
+      </button>
+    </nav>
+
+    <!-- Sidebar footer -->
+    <div class="sidebar-footer">
+      <div class="server-status-row">
+        <span class="server-dot" id="serverStatusDot"></span>
+        <span class="server-label" id="serverStatusLabel">Connecting…</span>
+      </div>
+      <div class="sidebar-telemetry">
+        <span class="telemetry-item">
+          <i data-lucide="zap" style="width:11px;height:11px;"></i>
+          Cache: <strong id="cacheLatencyLabel">--ms</strong>
+        </span>
+      </div>
+      <span class="sidebar-meta-url">Spring Boot • MySQL 8.0 • :8080</span>
+    </div>
+  </aside>
+
+  <!-- ═══════════════════════════════ MAIN ═══════════════════════════════ -->
+  <div class="main-wrapper">
+
+    <!-- ── TOP NAVIGATION BAR ── -->
+    <header class="topbar">
+      <div class="topbar-left">
+        <div class="page-title-block">
+          <h1 class="page-title" id="pageTitle">Dashboard Overview</h1>
+          <div class="page-meta">
+            <span class="live-pill" id="liveSyncPill">
+              <span class="live-pulse"></span>
+              <span>LIVE</span>
+              <span class="live-sep">•</span>
+              <span id="lastSyncedTime">--:--:--</span>
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <div class="topbar-right">
+        <!-- User pill -->
+        <div class="user-pill" id="userBadge">
+          <span class="user-avatar" id="userAvatarIcon"><i data-lucide="user-circle-2"></i></span>
+          <span class="user-name" id="userStatusText">Guest</span>
+          <span class="user-role-tag" id="userRoleTag">—</span>
+        </div>
+
+        <!-- Currency selector -->
+        <div class="currency-wrap">
+          <div class="currency-flag" id="currencyFlag">🌐</div>
+          <select class="currency-select" id="currencySelect" title="Currency">
+            <option value="INR">₹ INR — India</option>
+            <option value="USD">$ USD — USA</option>
+            <option value="AED">د.إ AED — UAE</option>
+            <option value="KWD">KD KWD — Kuwait</option>
+            <option value="PKR">Rs PKR — Pakistan</option>
+            <option value="CNY">¥ CNY — China</option>
+            <option value="JPY">¥ JPY — Japan</option>
+            <option value="EUR">€ EUR — Europe</option>
+            <option value="GBP">£ GBP — UK</option>
+          </select>
+        </div>
+
+        <!-- Mac-style toolbar group -->
+        <div class="toolbar-group">
+          <button class="toolbar-btn" id="commandPaletteBtn" title="Spotlight Search (Ctrl+K)">
+            <i data-lucide="search"></i>
+            <span class="toolbar-btn-label">⌘K</span>
+          </button>
+          <div class="toolbar-divider"></div>
+          <button class="toolbar-btn" id="autoSyncToggle" title="Toggle Auto-Sync">
+            <i data-lucide="radio"></i>
+            <span class="toolbar-btn-label">Auto</span>
+          </button>
+          <div class="toolbar-divider"></div>
+          <button class="toolbar-btn" id="themeToggle" title="Toggle Dark Mode">
+            <i data-lucide="moon"></i>
+            <span class="toolbar-btn-label">Dark</span>
+          </button>
+          <div class="toolbar-divider"></div>
+          <button class="toolbar-btn" id="notifBtn" title="Notifications">
+            <i data-lucide="bell"></i>
+            <span class="notif-badge-dot" id="notifBadge" style="display:none">0</span>
+          </button>
+          <div class="toolbar-divider"></div>
+          <button class="toolbar-btn" id="refreshBtn" title="Refresh Data">
+            <i data-lucide="refresh-cw"></i>
+          </button>
+        </div>
+
+        <!-- Auth button -->
+        <button class="btn btn-auth" id="authBtn">
+          <i data-lucide="log-in"></i>
+          <span>Sign In</span>
+        </button>
+
+        <!-- New Sale CTA (admin only) -->
+        <button class="btn btn-primary admin-only" id="newSaleBtn">
+          <i data-lucide="plus"></i>
+          <span>New Sale</span>
+        </button>
+      </div>
+    </header>
+
+    <!-- ── CONTENT AREA ── -->
+    <div class="content-area">
+
+      <!-- ════════════════ DASHBOARD TAB ════════════════ -->
+      <section class="tab-panel active" id="tab-dashboard">
+
+        <!-- Date Filter Bar -->
+        <div class="filter-bar" id="dashboardFilterBar">
+          <div class="filter-bar-left">
+            <div class="filter-label">
+              <i data-lucide="calendar-range"></i>
+              <span>Period</span>
+            </div>
+            <div class="segmented-control" id="dateSegmented">
+              <button class="seg-btn active" data-preset="all">All Time</button>
+              <button class="seg-btn" data-preset="today">Today</button>
+              <button class="seg-btn" data-preset="7d">7 Days</button>
+              <button class="seg-btn" data-preset="month">This Month</button>
+              <button class="seg-btn" data-preset="3m">3 Months</button>
+              <button class="seg-btn" data-preset="year">This Year</button>
+            </div>
+          </div>
+          <div class="filter-bar-right">
+            <div class="date-range-inputs">
+              <span class="date-range-label">From</span>
+              <input type="date" class="date-input" id="filterStartDate">
+              <span class="date-range-arrow"><i data-lucide="arrow-right"></i></span>
+              <span class="date-range-label">To</span>
+              <input type="date" class="date-input" id="filterEndDate">
+            </div>
+            <button class="btn btn-apply" id="applyFilterBtn">
+              <i data-lucide="check"></i>
+              Apply
+            </button>
+          </div>
+        </div>
+
+        <!-- KPI Cards -->
+        <div class="kpi-grid">
+          <div class="kpi-card revenue">
+            <div class="kpi-card-inner">
+              <div class="kpi-left">
+                <span class="kpi-label">Total Revenue</span>
+                <div class="kpi-value" id="kpiRevenue">₹0.00</div>
+                <div class="kpi-badge positive" id="kpiRevenueMoM">+0.0% MoM</div>
+              </div>
+              <div class="kpi-icon-wrap revenue-icon">
+                <i data-lucide="wallet"></i>
+              </div>
+            </div>
+          </div>
+          <div class="kpi-card orders">
+            <div class="kpi-card-inner">
+              <div class="kpi-left">
+                <span class="kpi-label">Total Orders</span>
+                <div class="kpi-value" id="kpiOrders">0</div>
+                <div class="kpi-badge info" id="kpiOrdersSub">0 orders completed</div>
+              </div>
+              <div class="kpi-icon-wrap orders-icon">
+                <i data-lucide="shopping-bag"></i>
+              </div>
+            </div>
+          </div>
+          <div class="kpi-card aov">
+            <div class="kpi-card-inner">
+              <div class="kpi-left">
+                <span class="kpi-label">Avg Order Value (AOV)</span>
+                <div class="kpi-value" id="kpiAOV">₹0.00</div>
+                <div class="kpi-badge info" id="kpiAOVSub">Avg basket: ₹0.00</div>
+              </div>
+              <div class="kpi-icon-wrap aov-icon">
+                <i data-lucide="target"></i>
+              </div>
+            </div>
+          </div>
+          <div class="kpi-card repeat">
+            <div class="kpi-card-inner">
+              <div class="kpi-left">
+                <span class="kpi-label">Repeat Customer Rate</span>
+                <div class="kpi-value" id="kpiRepeat">0.0%</div>
+                <div class="kpi-badge info" id="kpiRepeatSub">0 of 0 returning</div>
+              </div>
+              <div class="kpi-icon-wrap repeat-icon">
+                <i data-lucide="repeat-2"></i>
+              </div>
+            </div>
+          </div>
+          <div class="kpi-card clv">
+            <div class="kpi-card-inner">
+              <div class="kpi-left">
+                <span class="kpi-label">Avg Customer LTV</span>
+                <div class="kpi-value" id="kpiCLV">₹0.00</div>
+                <div class="kpi-badge info" id="kpiCLVSub">Across 0 customers</div>
+              </div>
+              <div class="kpi-icon-wrap clv-icon">
+                <i data-lucide="gem"></i>
+              </div>
+            </div>
+          </div>
+          <div class="kpi-card inventory">
+            <div class="kpi-card-inner">
+              <div class="kpi-left">
+                <span class="kpi-label">Catalog &amp; Inventory</span>
+                <div class="kpi-value" id="kpiProducts">0 Products</div>
+                <div class="kpi-badge info" id="kpiCategoryCount">Across 0 Categories</div>
+              </div>
+              <div class="kpi-icon-wrap inventory-icon">
+                <i data-lucide="layers"></i>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Two-column widget row -->
+        <div class="widget-row">
+
+          <!-- Sales Target Card -->
+          <div class="card target-card" id="salesTargetCard">
+            <div class="card-header">
+              <div class="card-title-group">
+                <div class="card-icon-badge target-badge">
+                  <i data-lucide="crosshair"></i>
+                </div>
+                <div>
+                  <h3 class="card-title">Monthly Sales Target</h3>
+                  <span class="card-subtitle" id="targetPeriodLabel">Quota &amp; Pacing</span>
+                </div>
+              </div>
+              <div class="card-actions">
+                <span class="kpi-badge positive" id="targetPacingBadge">On Track</span>
+                <button class="btn btn-secondary btn-sm admin-only" id="openSetTargetModalBtn">
+                  <i data-lucide="sliders-horizontal"></i>
+                  Set Target
+                </button>
+              </div>
+            </div>
+
+            <div class="target-metrics">
+              <div class="target-metric">
+                <span class="tm-label">Achieved</span>
+                <span class="tm-value primary" id="targetAchievedVal">₹0</span>
+                <span class="tm-sub" id="targetAchievedSub">Current month</span>
+              </div>
+              <div class="target-metric">
+                <span class="tm-label">Target</span>
+                <span class="tm-value" id="targetGoalVal">₹0</span>
+                <span class="tm-sub" id="targetGoalSub">Monthly quota</span>
+              </div>
+              <div class="target-metric">
+                <span class="tm-label">Progress</span>
+                <span class="tm-value accent" id="targetPercentVal">0%</span>
+                <span class="tm-sub" id="targetPercentSub">0% of month done</span>
+              </div>
+              <div class="target-metric">
+                <span class="tm-label">Projected</span>
+                <span class="tm-value" id="targetProjectedVal">₹0</span>
+                <span class="tm-sub" id="targetDaysRemaining">0 days left</span>
+              </div>
+            </div>
+
+            <div class="target-progress-wrap">
+              <div class="target-track">
+                <div class="target-fill" id="targetProgressBar" style="width:0%">
+                  <span class="target-fill-glow"></span>
+                </div>
+                <div class="target-today-pin" id="targetTimeElapsedMarker" style="left:0%">
+                  <span class="pin-needle"></span>
+                  <span class="pin-label">Today</span>
+                </div>
+              </div>
+              <div class="target-ticks">
+                <span>0%</span><span>25%</span><span>50%</span><span>75%</span><span>100%</span>
+              </div>
+              <div class="target-pacing-line" id="targetRequirementText">Calculating…</div>
+            </div>
+          </div>
+
+          <!-- Revenue Chart -->
+          <div class="card chart-card" id="revenueTrendCard">
+            <div class="card-header">
+              <div class="card-title-group">
+                <div class="card-icon-badge chart-badge">
+                  <i data-lucide="area-chart"></i>
+                </div>
+                <div>
+                  <h3 class="card-title">Revenue Trend</h3>
+                  <span class="card-subtitle">Monthly performance</span>
+                </div>
+              </div>
+              <div class="card-actions">
+                <span class="kpi-badge info" id="revTrendPeriod">12 months</span>
+              </div>
+            </div>
+            <div class="chart-wrap">
+              <canvas id="revenueChart"></canvas>
+            </div>
+          </div>
+        </div>
+
+        <!-- Second widget row -->
+        <div class="widget-row">
+          <!-- Category Chart -->
+          <div class="card chart-card" id="categorySalesCard">
+            <div class="card-header">
+              <div class="card-title-group">
+                <div class="card-icon-badge donut-badge">
+                  <i data-lucide="pie-chart"></i>
+                </div>
+                <div>
+                  <h3 class="card-title">Category Sales Mix</h3>
+                  <span class="card-subtitle">Revenue by category</span>
+                </div>
+              </div>
+            </div>
+            <div class="chart-wrap chart-wrap--donut">
+              <canvas id="categoryChart"></canvas>
+            </div>
+          </div>
+
+          <!-- Top Products -->
+          <div class="card" id="topProductsCard">
+            <div class="card-header">
+              <div class="card-title-group">
+                <div class="card-icon-badge product-badge">
+                  <i data-lucide="trending-up"></i>
+                </div>
+                <div>
+                  <h3 class="card-title">Top Products</h3>
+                  <span class="card-subtitle">By revenue</span>
+                </div>
+              </div>
+            </div>
+            <div class="top-products-list" id="topProductsList">
+              <div class="empty-state-mini">Loading…</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- VIP Leaderboard -->
+        <div class="card leaderboard-card" id="customerLeaderboardCard">
+          <div class="card-header">
+            <div class="card-title-group">
+              <div class="card-icon-badge gold-badge">
+                <i data-lucide="crown"></i>
+              </div>
+              <div>
+                <h3 class="card-title">VIP Customer Leaderboard</h3>
+                <span class="card-subtitle">Top buyers ranked by value</span>
+              </div>
+            </div>
+            <div class="card-actions">
+              <div class="segmented-control segmented-sm" id="leaderboardSort">
+                <button class="seg-btn active" data-sort="spend">By Spend</button>
+                <button class="seg-btn" data-sort="orders">By Orders</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Podium -->
+          <div class="podium" id="leaderboardPodium">
+            <div class="podium-loading">Loading leaderboard…</div>
+          </div>
+
+          <!-- Ranked table -->
+          <div class="leaderboard-table-wrap">
+            <table class="leaderboard-table">
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>Customer</th>
+                  <th>Country</th>
+                  <th>Total Spend</th>
+                  <th>Orders</th>
+                  <th>Avg Order</th>
+                  <th>Tier</th>
+                </tr>
+              </thead>
+              <tbody id="leaderboardTableBody">
+                <tr><td colspan="7" class="empty-cell">Loading…</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Global Market Breakdown -->
+        <div class="card" id="countryBreakdownCard">
+          <div class="card-header">
+            <div class="card-title-group">
+              <div class="card-icon-badge chart-badge">
+                <i data-lucide="globe"></i>
+              </div>
+              <div>
+                <h3 class="card-title">Global Market Breakdown</h3>
+                <span class="card-subtitle">Revenue &amp; orders by country</span>
+              </div>
+            </div>
+          </div>
+          <div class="country-breakdown-list" id="countryBreakdownList">
+            <div class="empty-state-mini">Loading global markets…</div>
+          </div>
+        </div>
+
+        <!-- Recent Transactions -->
+        <div class="card" id="recentSalesCard">
+          <div class="card-header">
+            <div class="card-title-group">
+              <div class="card-icon-badge tx-badge">
+                <i data-lucide="receipt"></i>
+              </div>
+              <div>
+                <h3 class="card-title">Recent Transactions</h3>
+                <span class="card-subtitle" id="recentSalesSubtitle">Latest orders</span>
+              </div>
+            </div>
+            <div class="card-actions">
+              <button class="btn btn-secondary btn-sm" id="exportSalesBtn">
+                <i data-lucide="download"></i>
+                Export
+              </button>
+            </div>
+          </div>
+          <div class="table-wrap">
+            <table class="data-table" id="salesTable">
+              <thead>
+                <tr>
+                  <th>Order ID</th>
+                  <th>Customer</th>
+                  <th>Product</th>
+                  <th>Qty</th>
+                  <th>Amount</th>
+                  <th>Date</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody id="salesTableBody">
+                <tr><td colspan="7" class="empty-cell">Loading transactions…</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+      </section>
+
+      <!-- ════════════════ CATEGORIES TAB ════════════════ -->
+      <section class="tab-panel" id="tab-categories">
+        <div class="page-header-row">
+          <div>
+            <h2 class="section-title">Categories</h2>
+            <p class="section-sub">Manage product categories</p>
+          </div>
+          <button class="btn btn-primary admin-only" id="addCategoryBtn">
+            <i data-lucide="plus"></i> Add Category
+          </button>
+        </div>
+        <div class="card">
+          <div class="table-wrap">
+            <table class="data-table" id="categoriesTable">
+              <thead>
+                <tr><th>ID</th><th>Name</th><th>Description</th><th>Products</th><th class="admin-only">Actions</th></tr>
+              </thead>
+              <tbody id="categoriesTableBody"><tr><td colspan="5" class="empty-cell">Loading…</td></tr></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- ════════════════ PRODUCTS TAB ════════════════ -->
+      <section class="tab-panel" id="tab-products">
+        <div class="page-header-row">
+          <div>
+            <h2 class="section-title">Products Catalog</h2>
+            <p class="section-sub">Manage inventory &amp; pricing</p>
+          </div>
+          <div class="card-actions">
+            <button class="btn btn-secondary admin-only" id="openCsvImportBtn">
+              <i data-lucide="upload"></i> Import CSV
+            </button>
+            <button class="btn btn-primary admin-only" id="addProductBtn">
+              <i data-lucide="plus"></i> Add Product
+            </button>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-header" style="border-bottom: 1px solid var(--border);">
+            <div class="search-wrap">
+              <i data-lucide="search"></i>
+              <input type="text" class="search-input" id="productSearch" placeholder="Search products…">
+            </div>
+            <div class="card-actions">
+              <span class="kpi-badge warning" id="lowStockAlert" style="display:none">
+                <i data-lucide="alert-triangle"></i>
+                Low Stock Alert
+              </span>
+            </div>
+          </div>
+          <div class="table-wrap">
+            <table class="data-table" id="productsTable">
+              <thead>
+                <tr><th>ID</th><th>Product</th><th>Category</th><th>Price</th><th>Stock</th><th>Status</th><th class="admin-only">Actions</th></tr>
+              </thead>
+              <tbody id="productsTableBody"><tr><td colspan="7" class="empty-cell">Loading…</td></tr></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- ════════════════ SALES TAB ════════════════ -->
+      <section class="tab-panel" id="tab-sales">
+        <div class="page-header-row">
+          <div>
+            <h2 class="section-title">Sales &amp; Orders</h2>
+            <p class="section-sub">All transactions</p>
+          </div>
+          <button class="btn btn-primary admin-only" id="createSaleBtn">
+            <i data-lucide="plus"></i> New Sale Order
+          </button>
+        </div>
+        <div class="card">
+          <div class="table-wrap">
+            <table class="data-table" id="allSalesTable">
+              <thead>
+                <tr><th>Order ID</th><th>Customer</th><th>Product</th><th>Qty</th><th>Amount</th><th>Date</th><th>Status</th></tr>
+              </thead>
+              <tbody id="allSalesTableBody"><tr><td colspan="7" class="empty-cell">Loading…</td></tr></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- ════════════════ CUSTOMERS TAB ════════════════ -->
+      <section class="tab-panel" id="tab-customers">
+        <div class="page-header-row">
+          <div>
+            <h2 class="section-title">Customers</h2>
+            <p class="section-sub">Customer profiles &amp; insights</p>
+          </div>
+          <div class="card-actions">
+            <button class="btn btn-secondary" id="exportCustomersBtn">
+              <i data-lucide="download"></i> Export CSV
+            </button>
+            <button class="btn btn-primary admin-only" id="addCustomerBtn">
+              <i data-lucide="user-plus"></i> Add Customer
+            </button>
+          </div>
+        </div>
+        <div class="card">
+          <div class="table-wrap">
+            <table class="data-table" id="customersTable">
+              <thead>
+                <tr><th>ID</th><th>Name</th><th>Email</th><th>Phone</th><th>Orders</th><th>Lifetime Value</th><th class="admin-only">Actions</th></tr>
+              </thead>
+              <tbody id="customersTableBody"><tr><td colspan="7" class="empty-cell">Loading…</td></tr></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- ════════════════ ANALYTICS TAB ════════════════ -->
+      <section class="tab-panel" id="tab-analytics">
+        <div class="page-header-row">
+          <div>
+            <h2 class="section-title">Advanced Reports</h2>
+            <p class="section-sub">Deep analytics &amp; exports</p>
+          </div>
+          <div class="card-actions">
+            <button class="btn btn-primary admin-only" id="emailReportBtn">
+              <i data-lucide="mail"></i> Email Report
+            </button>
+            <button class="btn btn-secondary" id="exportPdfBtn">
+              <i data-lucide="file-text"></i> Export PDF
+            </button>
+            <button class="btn btn-secondary" id="exportCsvBtn">
+              <i data-lucide="download"></i> Export CSV
+            </button>
+          </div>
+        </div>
+        <div class="analytics-grid">
+          <div class="card chart-card">
+            <div class="card-header">
+              <div class="card-title-group">
+                <div class="card-icon-badge chart-badge"><i data-lucide="bar-chart-3"></i></div>
+                <div><h3 class="card-title">Monthly Revenue</h3><span class="card-subtitle">Last 12 months</span></div>
+              </div>
+            </div>
+            <div class="chart-wrap"><canvas id="analyticsRevenueChart"></canvas></div>
+          </div>
+          <div class="card chart-card">
+            <div class="card-header">
+              <div class="card-title-group">
+                <div class="card-icon-badge donut-badge"><i data-lucide="pie-chart"></i></div>
+                <div><h3 class="card-title">Order Volume Trend</h3><span class="card-subtitle">Monthly orders</span></div>
+              </div>
+            </div>
+            <div class="chart-wrap"><canvas id="analyticsOrdersChart"></canvas></div>
+          </div>
+          <div class="card chart-card" style="grid-column: 1 / -1;">
+            <div class="card-header">
+              <div class="card-title-group">
+                <div class="card-icon-badge gold-badge"><i data-lucide="credit-card"></i></div>
+                <div><h3 class="card-title">Payment Gateway &amp; Method Mix</h3><span class="card-subtitle">Razorpay, Cards, UPI &amp; Bank Transfers</span></div>
+              </div>
+            </div>
+            <div class="chart-wrap"><canvas id="analyticsPaymentChart"></canvas></div>
+          </div>
+        </div>
+      </section>
+
+    </div><!-- /content-area -->
+  </div><!-- /main-wrapper -->
+</div><!-- /app-shell -->
+
+<!-- ═══════════════════════════════ MODALS ═══════════════════════════════ -->
+
+<!-- Auth Modal (Sign In, Register & 2FA Email OTP) -->
+<div class="modal-overlay" id="loginModal">
+  <div class="modal-box">
+    <div class="modal-header">
+      <div style="display:flex;align-items:center;gap:12px;">
+        <img src="assets/logo.png?v=20261126_v11" alt="Sales Analytics" class="auth-logo-img">
+        <div>
+          <h2 class="modal-title" id="authModalTitle">Sign In</h2>
+          <p class="modal-sub" id="authModalSub">2-Factor Email OTP secured access</p>
+        </div>
+      </div>
+      <div class="segmented-control" id="authModeTabs" style="margin-top:12px;">
+        <button type="button" class="seg-btn active" data-auth-mode="login">Sign In</button>
+        <button type="button" class="seg-btn" data-auth-mode="register">Create Account</button>
+      </div>
+    </div>
+
+    <!-- Step 1A: Login Form -->
+    <div class="modal-body" id="authLoginView">
+      <div id="loginError" class="form-error" style="display:none"></div>
+      <div class="form-group">
+        <label class="form-label">Username or Email</label>
+        <div class="input-wrap">
+          <i data-lucide="user"></i>
+          <input type="text" class="form-input" id="loginUsername" placeholder="shaikmusheer07@gmail.com or admin" autocomplete="username">
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Password</label>
+        <div class="input-wrap">
+          <i data-lucide="lock"></i>
+          <input type="password" class="form-input" id="loginPassword" placeholder="Password" autocomplete="current-password">
+        </div>
+      </div>
+      <div class="demo-fill-row">
+        <span class="form-hint">Quick fill:</span>
+        <button type="button" class="demo-pill" id="fillOwnerDemoBtn">Owner (Gmail)</button>
+        <button type="button" class="demo-pill" id="fillAdminDemoBtn">Admin</button>
+        <button type="button" class="demo-pill" id="fillViewerDemoBtn">Viewer</button>
+      </div>
+    </div>
+
+    <!-- Step 1B: Registration Form -->
+    <div class="modal-body" id="authRegisterView" style="display:none">
+      <div id="registerError" class="form-error" style="display:none"></div>
+      <div class="form-group">
+        <label class="form-label">Full Name</label>
+        <div class="input-wrap">
+          <i data-lucide="user"></i>
+          <input type="text" class="form-input" id="regFullName" placeholder="Your full name">
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Email Address (OTP will be sent here)</label>
+        <div class="input-wrap">
+          <i data-lucide="mail"></i>
+          <input type="email" class="form-input" id="regEmail" placeholder="you@example.com" autocomplete="email">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Password (min 6 chars)</label>
+          <div class="input-wrap">
+            <i data-lucide="lock"></i>
+            <input type="password" class="form-input" id="regPassword" placeholder="••••••" autocomplete="new-password">
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Account Role</label>
+          <div class="input-wrap">
+            <i data-lucide="shield"></i>
+            <select class="form-input" id="regRole">
+              <option value="ADMIN">Admin (Full Access)</option>
+              <option value="VIEWER">Viewer (Read Only)</option>
+            </select>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Step 2: 6-Digit Email OTP Verification -->
+    <div class="modal-body" id="authOtpView" style="display:none">
+      <div id="otpError" class="form-error" style="display:none"></div>
+      <div class="otp-banner">
+        <i data-lucide="shield-check" style="width:20px;height:20px;color:var(--primary);flex-shrink:0;"></i>
+        <div>
+          <div style="font-weight:600;font-size:13px;">Check your email for the 6-digit OTP</div>
+          <div style="font-size:12px;color:var(--text-muted);">Sent to <strong id="otpMaskedEmail">—</strong> • Expires in <strong id="otpExpiryTimer">05:00</strong></div>
+        </div>
+      </div>
+      <div class="otp-boxes" id="otpBoxes">
+        <input type="text" inputmode="numeric" maxlength="1" class="otp-digit" aria-label="OTP digit 1">
+        <input type="text" inputmode="numeric" maxlength="1" class="otp-digit" aria-label="OTP digit 2">
+        <input type="text" inputmode="numeric" maxlength="1" class="otp-digit" aria-label="OTP digit 3">
+        <input type="text" inputmode="numeric" maxlength="1" class="otp-digit" aria-label="OTP digit 4">
+        <input type="text" inputmode="numeric" maxlength="1" class="otp-digit" aria-label="OTP digit 5">
+        <input type="text" inputmode="numeric" maxlength="1" class="otp-digit" aria-label="OTP digit 6">
+      </div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px;">
+        <button type="button" class="btn btn-secondary btn-sm" id="otpBackBtn"><i data-lucide="arrow-left"></i> Back</button>
+        <button type="button" class="btn btn-secondary btn-sm" id="resendOtpBtn">Resend OTP</button>
+      </div>
+    </div>
+
+    <div class="modal-footer">
+      <button class="btn btn-secondary" id="loginCancelBtn">Cancel</button>
+      <button class="btn btn-primary" id="loginSubmitBtn">
+        <i data-lucide="shield-check"></i>
+        Send OTP &amp; Continue
+      </button>
+      <button class="btn btn-primary" id="registerSubmitBtn" style="display:none">
+        <i data-lucide="user-plus"></i>
+        Register &amp; Send OTP
+      </button>
+      <button class="btn btn-primary" id="verifyOtpSubmitBtn" style="display:none">
+        <i data-lucide="check-circle-2"></i>
+        Verify OTP &amp; Sign In
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Set Target Modal -->
+<div class="modal-overlay" id="setTargetModal">
+  <div class="modal-box modal-box--sm">
+    <div class="modal-header">
+      <h2 class="modal-title">Set Monthly Target</h2>
+      <p class="modal-sub">Configure your monthly sales quota</p>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label class="form-label">Target Amount (USD)</label>
+        <div class="input-wrap">
+          <i data-lucide="dollar-sign"></i>
+          <input type="number" class="form-input" id="targetInputUSD" placeholder="e.g. 10000" min="0" step="100">
+        </div>
+        <small class="form-hint">Amount in USD — displayed in selected currency</small>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" id="cancelTargetBtn">Cancel</button>
+      <button class="btn btn-primary" id="saveTargetBtn">
+        <i data-lucide="save"></i>
+        Save Target
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- New Sale Modal -->
+<div class="modal-overlay" id="newSaleModal">
+  <div class="modal-box">
+    <div class="modal-header">
+      <h2 class="modal-title">Create Sale Order</h2>
+      <p class="modal-sub">Record a new transaction</p>
+    </div>
+    <div class="modal-body">
+      <div id="newSaleError" class="form-error" style="display:none"></div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Customer</label>
+          <div class="input-wrap">
+            <i data-lucide="user"></i>
+            <select class="form-input" id="newSaleCustomer"><option value="">Select customer…</option></select>
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Product</label>
+          <div class="input-wrap">
+            <i data-lucide="package"></i>
+            <select class="form-input" id="newSaleProduct"><option value="">Select product…</option></select>
+          </div>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Quantity</label>
+          <div class="input-wrap">
+            <i data-lucide="hash"></i>
+            <input type="number" class="form-input" id="newSaleQty" placeholder="1" min="1" value="1">
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Unit Price</label>
+          <div class="input-wrap">
+            <i data-lucide="indian-rupee"></i>
+            <input type="number" class="form-input" id="newSalePrice" placeholder="0.00" min="0" step="0.01">
+          </div>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Payment Method</label>
+          <div class="input-wrap">
+            <i data-lucide="credit-card"></i>
+            <select class="form-input" id="newSalePayment">
+              <option value="RAZORPAY">Razorpay International (Cards / UPI / Global Wallets)</option>
+              <option value="RAZORPAY_QR">Razorpay Scan &amp; Pay (Instant UPI QR Code)</option>
+              <option value="CREDIT_CARD">Credit Card</option>
+              <option value="UPI">UPI</option>
+              <option value="BANK_TRANSFER">Bank Transfer</option>
+              <option value="CASH">Cash</option>
+            </select>
+          </div>
+          <div id="razorpayIntlBox" style="margin-top:8px;padding:10px 12px;border-radius:10px;background:var(--bg-subtle);border:1px solid var(--border);font-size:12px;">
+            <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:6px;">
+              <span style="font-weight:600;color:var(--primary);">Razorpay International Checkout</span>
+              <select id="razorpayChargeCurrency" class="form-input" style="width:auto;padding:4px 8px;font-size:11.5px;height:28px;">
+                <option value="INR">🇮🇳 INR (₹)</option>
+                <option value="USD">🇺🇸 USD ($)</option>
+                <option value="AED">🇦🇪 AED</option>
+                <option value="EUR">🇪🇺 EUR (€)</option>
+                <option value="GBP">🇬🇧 GBP (£)</option>
+                <option value="SGD">🇸🇬 SGD</option>
+                <option value="AUD">🇦🇺 AUD</option>
+                <option value="CAD">🇨🇦 CAD</option>
+                <option value="JPY">🇯🇵 JPY (¥)</option>
+                <option value="CNY">🇨🇳 CNY (¥)</option>
+              </select>
+            </div>
+            <div style="color:var(--text-muted);" id="razorpayAmountPreview">Select customer &amp; product to preview international charge</div>
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Notes (Optional)</label>
+          <div class="input-wrap">
+            <i data-lucide="file-text"></i>
+            <input type="text" class="form-input" id="newSaleNotes" placeholder="Order notes…">
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" id="cancelNewSaleBtn">Cancel</button>
+      <button class="btn btn-primary" id="submitNewSaleBtn">
+        <i data-lucide="plus"></i>
+        Create Order
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- New Category Modal -->
+<div class="modal-overlay" id="newCategoryModal">
+  <div class="modal-box modal-box--sm">
+    <div class="modal-header">
+      <h2 class="modal-title">Add Category</h2>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label class="form-label">Name</label>
+        <div class="input-wrap"><i data-lucide="folder"></i><input type="text" class="form-input" id="newCatName" placeholder="Category name"></div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Description</label>
+        <div class="input-wrap"><i data-lucide="file-text"></i><input type="text" class="form-input" id="newCatDesc" placeholder="Description"></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" id="cancelCatBtn">Cancel</button>
+      <button class="btn btn-primary" id="saveCatBtn"><i data-lucide="save"></i> Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- New Product Modal -->
+<div class="modal-overlay" id="newProductModal">
+  <div class="modal-box">
+    <div class="modal-header">
+      <h2 class="modal-title">Add Product</h2>
+    </div>
+    <div class="modal-body">
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Product Name</label>
+          <div class="input-wrap"><i data-lucide="package"></i><input type="text" class="form-input" id="newProdName" placeholder="Product name"></div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Category</label>
+          <div class="input-wrap"><i data-lucide="folder"></i><select class="form-input" id="newProdCategory"><option value="">Select…</option></select></div>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Price (₹)</label>
+          <div class="input-wrap"><i data-lucide="indian-rupee"></i><input type="number" class="form-input" id="newProdPrice" placeholder="0.00" step="0.01"></div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Stock Qty</label>
+          <div class="input-wrap"><i data-lucide="hash"></i><input type="number" class="form-input" id="newProdStock" placeholder="0" min="0"></div>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">SKU Code</label>
+          <div class="input-wrap"><i data-lucide="barcode"></i><input type="text" class="form-input" id="newProdSku" placeholder="e.g. SKU-1001"></div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Description</label>
+          <div class="input-wrap"><i data-lucide="file-text"></i><input type="text" class="form-input" id="newProdDesc" placeholder="Description"></div>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" id="cancelProdBtn">Cancel</button>
+      <button class="btn btn-primary" id="saveProdBtn"><i data-lucide="save"></i> Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- New Customer Modal -->
+<div class="modal-overlay" id="newCustomerModal">
+  <div class="modal-box">
+    <div class="modal-header">
+      <h2 class="modal-title">Add Customer</h2>
+    </div>
+    <div class="modal-body">
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">First Name</label>
+          <div class="input-wrap"><i data-lucide="user"></i><input type="text" class="form-input" id="newCustFirst" placeholder="First name"></div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Last Name</label>
+          <div class="input-wrap"><i data-lucide="user"></i><input type="text" class="form-input" id="newCustLast" placeholder="Last name"></div>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Email</label>
+          <div class="input-wrap"><i data-lucide="mail"></i><input type="email" class="form-input" id="newCustEmail" placeholder="email@example.com"></div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Phone</label>
+          <div class="input-wrap"><i data-lucide="phone"></i><input type="text" class="form-input" id="newCustPhone" placeholder="+91 00000 00000"></div>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">City</label>
+          <div class="input-wrap"><i data-lucide="map-pin"></i><input type="text" class="form-input" id="newCustCity" placeholder="Mumbai"></div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Country</label>
+          <div class="input-wrap"><i data-lucide="globe"></i><input type="text" class="form-input" id="newCustCountry" placeholder="India"></div>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" id="cancelCustBtn">Cancel</button>
+      <button class="btn btn-primary" id="saveCustBtn"><i data-lucide="save"></i> Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- Restock Modal -->
+<div class="modal-overlay" id="restockModal">
+  <div class="modal-box modal-box--sm">
+    <div class="modal-header">
+      <h2 class="modal-title">Restock Inventory</h2>
+      <p class="modal-sub" id="restockProductLabel">Product</p>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="restockProductId">
+      <div class="form-group">
+        <label class="form-label">Units to Add</label>
+        <div class="input-wrap"><i data-lucide="package-plus"></i><input type="number" class="form-input" id="restockUnitsInput" min="1" value="20"></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" id="cancelRestockBtn">Cancel</button>
+      <button class="btn btn-primary" id="saveRestockBtn"><i data-lucide="check"></i> Add Stock</button>
+    </div>
+  </div>
+</div>
+
+<!-- Invoice Modal -->
+<div class="modal-overlay" id="invoiceModal">
+  <div class="modal-box modal-box--lg invoice-card-shell">
+    <div class="modal-header invoice-brand-bar">
+      <div style="display:flex;align-items:center;gap:12px;">
+        <img src="assets/logo.png?v=20261126_v11" alt="Sales Analytics Enterprise" class="invoice-header-logo">
+        <div>
+          <div style="font-size:11px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:var(--primary);">Sales Analytics Enterprise • Tax Invoice</div>
+          <h2 class="modal-title" id="invOrderTitle">Invoice</h2>
+          <p class="modal-sub" id="invOrderMeta">Order details</p>
+        </div>
+      </div>
+      <div style="text-align:right;">
+        <span class="kpi-badge positive" id="invStatusBadge">COMPLETED</span>
+        <div style="font-size:11px;color:var(--text-muted);margin-top:4px;">shaikmusheer07@gmail.com</div>
+      </div>
+    </div>
+    <div class="modal-body invoice-print-body" id="invoicePrintBody">
+      <img src="assets/logo.png?v=20261126_v11" alt="" class="invoice-watermark">
+      <div style="display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap;position:relative;z-index:1;">
+        <div><strong>Customer:</strong> <span id="invCustomerName">—</span></div>
+        <div><strong>Payment:</strong> <span id="invPaymentMethod">—</span></div>
+      </div>
+      <div class="table-wrap" style="position:relative;z-index:1;">
+        <table class="data-table">
+          <thead><tr><th>Item</th><th>Qty</th><th>Unit Price</th><th>Subtotal</th></tr></thead>
+          <tbody id="invItemsBody"></tbody>
+        </table>
+      </div>
+      <div class="invoice-stamp-row">
+        <div class="official-stamp" title="Official Verified Seal — Sales Analytics Enterprise">
+          <div class="stamp-ring">
+            <span class="stamp-top">SALES ANALYTICS</span>
+            <img src="assets/logo.png?v=20261126_v11" alt="Seal" class="stamp-center-logo">
+            <span class="stamp-bottom">VERIFIED &bull; PAID</span>
+          </div>
+        </div>
+        <div style="text-align:right;">
+          <div style="font-size:18px;font-weight:800;color:var(--text-primary);margin-bottom:10px;">
+            Total: <span id="invGrandTotal" style="color:var(--primary);">—</span>
+          </div>
+          <div class="invoice-signatory">
+            <div class="signatory-script">Shaik Musheer</div>
+            <div class="signatory-label">Authorized Signatory &bull; Enterprise HQ</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" id="closeInvoiceBtn">Close</button>
+      <button class="btn btn-secondary admin-only" id="emailInvoiceBtn"><i data-lucide="mail"></i> Email Invoice</button>
+      <button class="btn btn-primary" id="printInvoiceBtn"><i data-lucide="printer"></i> Print / PDF</button>
+    </div>
+  </div>
+</div>
+
+<!-- Notification Drawer -->
+<div class="notif-backdrop" id="notifBackdrop"></div>
+<aside class="notif-drawer" id="notifDrawer">
+  <div class="notif-drawer-head">
+    <div>
+      <h3 class="card-title">Live Notifications</h3>
+      <span class="card-subtitle">Real-time system &amp; stock alerts</span>
+    </div>
+    <div style="display:flex;gap:6px;">
+      <button class="btn btn-secondary btn-sm" id="clearNotifBtn">Clear</button>
+      <button class="btn btn-secondary btn-sm" id="closeNotifBtn"><i data-lucide="x"></i></button>
+    </div>
+  </div>
+  <div class="notif-drawer-body" id="notifList"></div>
+</aside>
+
+<!-- Toast Notification -->
+<div class="toast-container" id="toastContainer"></div>
+
+<!-- Spotlight Command Palette (Ctrl+K) -->
+<div class="modal-overlay" id="commandModal">
+  <div class="modal-box" style="padding:0;overflow:hidden;max-width:560px;">
+    <div class="cmd-input-row">
+      <i data-lucide="search" style="width:18px;height:18px;color:var(--primary);flex-shrink:0;"></i>
+      <input type="text" id="commandSearchInput" class="cmd-input" placeholder="Search products, customers, countries, orders, or actions…" autocomplete="off">
+      <span class="cmd-kbd">ESC</span>
+    </div>
+    <div class="cmd-results" id="commandResults"></div>
+  </div>
+</div>
+
+<!-- Bulk CSV Product Import Modal -->
+<div class="modal-overlay" id="csvImportModal">
+  <div class="modal-box">
+    <div class="modal-header">
+      <h2 class="modal-title">Bulk Import Products (CSV)</h2>
+      <p class="modal-sub">Columns: name, sku, categoryId, price, stockQuantity, description</p>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label class="form-label">Select CSV File</label>
+        <input type="file" id="csvProductFile" accept=".csv,text/csv" class="form-input" style="padding:8px;">
+      </div>
+      <div id="csvImportStatus" style="font-size:12.5px;color:var(--text-muted);margin-top:6px;"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" id="downloadSampleCsvBtn"><i data-lucide="download"></i> Sample CSV</button>
+      <button class="btn btn-secondary" id="cancelCsvImportBtn">Cancel</button>
+      <button class="btn btn-primary" id="runCsvImportBtn"><i data-lucide="upload"></i> Import Now</button>
+    </div>
+  </div>
+</div>
+
+<!-- Razorpay Scan & Pay QR Modal -->
+<div class="modal-overlay" id="razorpayQrModal">
+  <div class="modal-box modal-box--sm" style="text-align:center;">
+    <div class="modal-header">
+      <h2 class="modal-title">Razorpay Scan &amp; Pay</h2>
+      <p class="modal-sub" id="rzpQrSubtitle">Scan with any UPI / Razorpay app</p>
+    </div>
+    <div class="modal-body" style="display:flex;flex-direction:column;align-items:center;gap:12px;">
+      <div style="padding:12px;background:#ffffff;border-radius:14px;border:1px solid var(--border);box-shadow:var(--shadow-sm);">
+        <img id="rzpQrImage" src="" alt="Razorpay Scan and Pay QR" width="210" height="210" style="display:block;border-radius:8px;">
+      </div>
+      <div style="font-size:18px;font-weight:800;color:var(--primary);" id="rzpQrAmountLabel">₹0.00</div>
+      <div style="font-size:12px;color:var(--text-muted);" id="rzpQrMeta">Key: rzp_test_TWMghMtesxGj8a • Test Mode</div>
+    </div>
+    <div class="modal-footer" style="justify-content:center;flex-wrap:wrap;">
+      <button class="btn btn-secondary" id="rzpQrCancelBtn">Cancel</button>
+      <button class="btn btn-secondary" id="rzpQrOpenCheckoutBtn"><i data-lucide="external-link"></i> Open Razorpay Popup</button>
+      <button class="btn btn-primary" id="rzpQrConfirmPaidBtn"><i data-lucide="check-circle-2"></i> Confirm Paid &amp; Save</button>
+    </div>
+  </div>
+</div>
+
+<script src="js/api.js?v=20261126_v11"></script>
+<script src="js/app.js?v=20261126_v11"></script>
+</body>
+</html>
