@@ -49,13 +49,15 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                 .requestMatchers("/api/auth/**").permitAll()
                 .requestMatchers("/swagger-ui/**", "/v3/api-docs/**", "/swagger-ui.html").permitAll()
-                // Public read-only
-                .requestMatchers(HttpMethod.GET, "/api/analytics/**").permitAll()
+                // Public health/uptime check + auth + swagger
+                .requestMatchers(HttpMethod.GET, "/api/analytics/summary").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/realtime/**").permitAll()
+                // Admin-only analytics & reports
+                .requestMatchers("/api/analytics/**").hasRole("ADMIN")
                 // User-role endpoints (authenticated users, any role)
                 .requestMatchers("/api/user/**").authenticated()
                 .requestMatchers("/api/chat/**").authenticated()
-                // Admin-only endpoints
+                // Admin-only CRUD endpoints
                 .requestMatchers(HttpMethod.GET, "/api/**").hasAnyRole("ADMIN", "USER")
                 .requestMatchers(HttpMethod.POST, "/api/**").hasAnyRole("ADMIN", "USER")
                 .requestMatchers(HttpMethod.PUT, "/api/**").hasAnyRole("ADMIN", "USER")

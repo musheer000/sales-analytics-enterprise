@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Sales Analytics — Enterprise</title>
   <link rel="icon" type="image/png" href="assets/logo.png?v=20261126_v11">
-  <link rel="stylesheet" href="css/styles.css?v=20261126_v11">
+  <link rel="stylesheet" href="css/styles.css?v=20261127_v12">
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="https://unpkg.com/lucide@latest"></script>
   <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
@@ -14,7 +14,23 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 </head>
 <body>
-<div class="app-shell">
+<!-- ═══ ADMIN AUTH GATE (Nothing shown before Admin Login + 2FA OTP) ═══ -->
+<div id="adminAuthGate" class="admin-auth-gate">
+  <div class="admin-gate-card">
+    <img src="assets/logo.png?v=20261126_v11" alt="Sales Analytics" class="admin-gate-logo">
+    <h1>Sales Analytics Enterprise</h1>
+    <p>Admin Portal &amp; Business Intelligence Suite.<br>Sign in with your Admin credentials &amp; 2FA Email OTP to view analytics.</p>
+    <button class="btn-primary admin-gate-btn" id="gateSignInBtn">
+      <i data-lucide="shield-check"></i> Sign In to Admin Dashboard
+    </button>
+    <div class="admin-gate-divider"><span>or</span></div>
+    <a href="user.html" class="admin-gate-store-link">
+      <i data-lucide="store"></i> Customer? Open User Store Portal →
+    </a>
+  </div>
+</div>
+
+<div class="app-shell" id="adminAppShell" style="display:none;">
 
   <!-- ═══════════════════════════════ SIDEBAR ═══════════════════════════════ -->
   <aside class="sidebar" id="appSidebar">
@@ -1276,7 +1292,7 @@
   </div>
 </div>
 
-<script src="js/api.js?v=20261126_v11"></script>
-<script src="js/app.js?v=20261126_v11"></script>
+<script src="js/api.js?v=20261127_v12"></script>
+<script src="js/app.js?v=20261127_v12"></script>
 </body>
 </html>

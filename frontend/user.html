@@ -842,6 +842,24 @@ function switchAuthTab(tab) {
 }
 function showAuthModal(tab) { switchAuthTab(tab); }
 
+async function postJsonWithWakeRetry(url, payload) {
+  for (let attempt = 0; attempt < 2; attempt++) {
+    try {
+      return await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+    } catch (err) {
+      if (attempt === 0) {
+        await new Promise(res => setTimeout(res, 2200));
+        continue;
+      }
+      throw new Error('Server is waking up or restarting on Render. Please wait 15 seconds and try again.');
+    }
+  }
+}
+
 async function handleLogin() {
   const email = document.getElementById('loginEmail').value.trim();
   const pass = document.getElementById('loginPassword').value;
@@ -851,10 +869,7 @@ async function handleLogin() {
   if (!email || !pass) { showErr(errEl, 'Email and password required.'); return; }
   btn.disabled = true; btn.textContent = 'Signing in…';
   try {
-    const r = await fetch(API + '/auth/login', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ username: email, password: pass })
-    });
+    const r = await postJsonWithWakeRetry(API + '/auth/login', { username: email, password: pass });
     const j = await r.json();
     if (!r.ok) { showErr(errEl, j.message || 'Login failed.'); return; }
     if (j.data?.otpRequired) {
@@ -873,14 +888,10 @@ async function handleRegister() {
   const errEl = document.getElementById('regError');
   const btn = document.getElementById('regBtn');
   errEl.style.display = 'none';
-  if (!name || !email || !pass) { showErr(errEl, 'All fields are required.'); return; }
-  if (pass.length < 8) { showErr(errEl, 'Password must be at least 8 characters.'); return; }
-  btn.disabled = true; btn.textContent = 'Creating account…';
+  if (!name || !email || pass.length < 8) { showErr(errEl, !name || !email ? 'All fields are required.' : 'Password must be at least 8 characters.'); return; }
+  btn.disabled = true; btn.textContent = 'Sending OTP…';
   try {
-    const r = await fetch(API + '/auth/register', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ fullName: name, email, password: pass, role: 'USER' })
-    });
+    const r = await postJsonWithWakeRetry(API + '/auth/register', { fullName: name, email, password: pass, role: 'USER' });
     const j = await r.json();
     if (!r.ok) { showErr(errEl, j.message || 'Registration failed.'); return; }
     if (j.data?.otpRequired) {

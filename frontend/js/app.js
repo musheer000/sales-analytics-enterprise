@@ -162,10 +162,24 @@ document.addEventListener('DOMContentLoaded', () => {
   initToolbarAndExports();
   initCommandPalette();
   initCsvProductImport();
-  setupRealTimeSync();
-  initRealtimeSSE();
   refreshIcons();
-  loadAllData();
+
+  document.getElementById('gateSignInBtn')?.addEventListener('click', () => {
+    switchAuthView('login');
+    openModal('loginModal');
+  });
+
+  // Only load analytics & SSE if authenticated as ADMIN
+  const user = SalesAPI.getCurrentUser();
+  const isAdmin = user && SalesAPI.getToken() && String(user.role).toUpperCase().includes('ADMIN');
+  if (isAdmin) {
+    setupRealTimeSync();
+    initRealtimeSSE();
+    loadAllData();
+  } else if (user && SalesAPI.getToken() && String(user.role).toUpperCase() === 'USER') {
+    localStorage.setItem('user_token', SalesAPI.getToken());
+    window.location.href = 'user.html';
+  }
 });
 
 // ─── Theme (Light / Dark) ────────────────────────────────────────────────────
@@ -508,6 +522,8 @@ async function handleVerifyOtp() {
       window.location.href = 'user.html';
       return;
     }
+    setupRealTimeSync();
+    initRealtimeSSE();
     loadAllData();
   } catch (err) {
     errEl.textContent = err.message || 'Invalid OTP code';
@@ -519,8 +535,16 @@ async function handleVerifyOtp() {
 
 function updateAuthUI() {
   const user = SalesAPI.getCurrentUser();
-  const isAdmin = user && String(user.role).toUpperCase().includes('ADMIN');
-  document.body.classList.toggle('is-admin', Boolean(isAdmin));
+  const hasToken = Boolean(SalesAPI.getToken());
+  const isAdmin = Boolean(user && hasToken && String(user.role).toUpperCase().includes('ADMIN'));
+  document.body.classList.toggle('is-admin', isAdmin);
+
+  const gateEl = document.getElementById('adminAuthGate');
+  const shellEl = document.getElementById('adminAppShell');
+  if (gateEl && shellEl) {
+    gateEl.style.display = isAdmin ? 'none' : 'flex';
+    shellEl.style.display = isAdmin ? 'flex' : 'none';
+  }
 
   const nameEl = document.getElementById('userStatusText');
   const roleEl = document.getElementById('userRoleTag');
