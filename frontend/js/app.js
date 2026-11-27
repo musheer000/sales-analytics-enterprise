@@ -390,8 +390,8 @@ function initAuthUI() {
     document.getElementById('loginPassword').value = 'admin123';
   });
   document.getElementById('fillViewerDemoBtn')?.addEventListener('click', () => {
-    document.getElementById('loginUsername').value = 'viewer';
-    document.getElementById('loginPassword').value = 'viewer123';
+    document.getElementById('loginUsername').value = 'shaikmusheer07@gmail.com';
+    document.getElementById('loginPassword').value = '77889966';
   });
 
   document.getElementById('loginSubmitBtn')?.addEventListener('click', handleLogin);
@@ -473,7 +473,7 @@ async function handleRegister() {
   const fullName = document.getElementById('regFullName').value.trim();
   const email = document.getElementById('regEmail').value.trim();
   const password = document.getElementById('regPassword').value;
-  const role = document.getElementById('regRole').value || 'ADMIN';
+  const role = 'USER'; // Admin cannot self-register; always register as Customer
   const errEl = document.getElementById('registerError');
   const btn = document.getElementById('registerSubmitBtn');
   errEl.style.display = 'none';
@@ -553,7 +553,7 @@ function updateAuthUI() {
   if (user) {
     if (nameEl) nameEl.textContent = user.username;
     if (roleEl) {
-      roleEl.textContent = isAdmin ? 'ADMIN' : 'VIEWER';
+      roleEl.textContent = isAdmin ? 'ADMIN' : 'CUSTOMER';
       roleEl.style.display = 'inline-block';
     }
     if (authBtn) authBtn.innerHTML = `<i data-lucide="log-out"></i><span>Sign Out</span>`;
