@@ -784,7 +784,7 @@ async function loadAllData(silent = false) {
   if (label) label.textContent = healthy ? 'Backend Connected' : 'Backend Offline';
 
   if (!healthy) {
-    if (!silent) showToast('Cannot reach backend at localhost:8080', 'error');
+    if (!silent) showToast('Cannot reach backend server. Please wait a moment and refresh.', 'error');
     return;
   }
 

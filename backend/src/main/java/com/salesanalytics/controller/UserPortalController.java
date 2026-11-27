@@ -47,7 +47,7 @@ public class UserPortalController {
     // ── PRODUCTS: Browse all (open to any authenticated user) ────────────────
     @GetMapping("/products")
     public ResponseEntity<ApiResponse<List<Map<String, Object>>>> browseProducts() {
-        List<Product> products = productRepo.findAll();
+        List<Product> products = productRepo.findAllWithCategory();
         List<Map<String, Object>> result = products.stream().map(p -> {
             Double avgRating = reviewRepo.findAverageRatingByProductId(p.getId());
             long reviewCount = reviewRepo.countByProductId(p.getId());
@@ -230,7 +230,7 @@ public class UserPortalController {
     @GetMapping("/orders")
     public ResponseEntity<ApiResponse<List<Map<String, Object>>>> getMyOrders(Authentication auth) {
         String userEmail = auth.getName();
-        List<UserOrder> orders = userOrderRepo.findByUserEmailOrderByCreatedAtDesc(userEmail);
+        List<UserOrder> orders = userOrderRepo.findByUserEmailWithProduct(userEmail);
         return ResponseEntity.ok(ApiResponse.ok("Order history", orders.stream().map(o -> {
             Map<String, Object> m = new HashMap<>();
             m.put("id", o.getId());

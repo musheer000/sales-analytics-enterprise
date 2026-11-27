@@ -116,11 +116,20 @@ const SalesAPI = {
             const res = await fetch(`${API_BASE}/analytics/summary`, {
                 method: 'GET',
                 mode: 'cors',
+                signal: AbortSignal.timeout(8000),
                 headers: this.getAuthHeaders()
             });
             return res.ok;
         } catch (e) {
-            return false;
+            // Try a lightweight public endpoint as fallback
+            try {
+                const r2 = await fetch(`${API_BASE.replace('/api', '')}/actuator/health`, {
+                    method: 'GET', mode: 'cors', signal: AbortSignal.timeout(5000)
+                });
+                return r2.ok;
+            } catch (e2) {
+                return false;
+            }
         }
     },
 
