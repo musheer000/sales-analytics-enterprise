@@ -23,6 +23,9 @@
     <button class="btn-primary admin-gate-btn" id="gateSignInBtn">
       <i data-lucide="shield-check"></i> Sign In to Admin Dashboard
     </button>
+    <button class="btn-secondary admin-gate-btn" id="gateRegisterBtn" style="margin-top:10px;width:100%;justify-content:center;">
+      <i data-lucide="user-plus"></i> Create New Admin Account
+    </button>
     <div class="admin-gate-divider"><span>or</span></div>
     <a href="user.html" class="admin-gate-store-link">
       <i data-lucide="store"></i> Customer? Open User Store Portal →
@@ -796,6 +799,7 @@
       </div>
       <div class="segmented-control" id="authModeTabs" style="margin-top:12px;">
         <button type="button" class="seg-btn active" data-auth-mode="login">Sign In</button>
+        <button type="button" class="seg-btn" data-auth-mode="register">Create Admin</button>
       </div>
     </div>
 
@@ -853,7 +857,7 @@
           <div class="input-wrap">
             <i data-lucide="shield"></i>
             <select class="form-input" id="regRole">
-              <option value="USER">Customer / Store User (User Portal)</option>
+              <option value="ADMIN">Admin (Full Sales Analytics &amp; Management)</option>
             </select>
           </div>
         </div>
@@ -1290,7 +1294,7 @@
   </div>
 </div>
 
-<script src="js/api.js?v=20261127_v12"></script>
-<script src="js/app.js?v=20261127_v12"></script>
+<script src="js/api.js?v=20261127_v13"></script>
+<script src="js/app.js?v=20261127_v13"></script>
 </body>
 </html>

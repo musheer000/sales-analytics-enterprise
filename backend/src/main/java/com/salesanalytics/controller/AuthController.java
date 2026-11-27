@@ -81,22 +81,33 @@ public class AuthController {
         String fullName = req.getOrDefault("fullName", "").trim();
         String email = req.getOrDefault("email", "").trim().toLowerCase();
         String password = req.getOrDefault("password", "");
-        // Public self-registration always creates a USER account; Admin access is reserved
-        String role = "USER";
+        String requestedRole = req.getOrDefault("role", "USER").trim().toUpperCase();
+        String role = "ADMIN".equals(requestedRole) ? "ADMIN" : "USER";
 
-        if (fullName.isBlank() || email.isBlank() || !email.contains("@")) {
+        if (fullName.isBlank() || email.isBlank() || !email.contains("@") || !email.contains(".")) {
             return ResponseEntity.badRequest().body(ApiResponse.error("Valid full name and email are required."));
         }
         if (password.length() < 8) {
             return ResponseEntity.badRequest().body(ApiResponse.error("Password must be at least 8 characters."));
         }
-        if (email.equalsIgnoreCase(ownerEmail) || "admin".equalsIgnoreCase(email)) {
+        if ("admin".equalsIgnoreCase(email)) {
             return ResponseEntity.status(HttpStatus.CONFLICT)
-                    .body(ApiResponse.error("This email is reserved for admin access. Please use a different email."));
+                    .body(ApiResponse.error("This username is reserved. Please use a valid personal email address."));
+        }
+        if ("USER".equals(role) && email.equalsIgnoreCase(ownerEmail)) {
+            return ResponseEntity.status(HttpStatus.CONFLICT)
+                    .body(ApiResponse.error("Owner/Admin and Customer emails cannot be the same. Please use a different email."));
         }
 
         Optional<AppUser> existing = userRepository.findByEmailIgnoreCase(email);
         if (existing.isPresent() && existing.get().isVerified()) {
+            String existingRole = existing.get().getRole() != null ? existing.get().getRole().toUpperCase() : "USER";
+            if (!existingRole.equals(role)) {
+                return ResponseEntity.status(HttpStatus.CONFLICT)
+                        .body(ApiResponse.error("This email is already registered as " +
+                                ("ADMIN".equals(existingRole) ? "an Admin" : "a Customer") +
+                                ". Admin and Customer emails cannot be the same."));
+            }
             return ResponseEntity.status(HttpStatus.CONFLICT)
                     .body(ApiResponse.error("An account with this email already exists. Please sign in."));
         }
@@ -163,9 +174,23 @@ public class AuthController {
         }
 
         try {
-            authenticationManager.authenticate(
+            Authentication authResult = authenticationManager.authenticate(
                     new UsernamePasswordAuthenticationToken(username, request.getPassword())
             );
+            String portal = request.getPortal() != null ? request.getPortal().trim().toUpperCase() : "";
+            String userRole = authResult.getAuthorities().stream()
+                    .map(GrantedAuthority::getAuthority)
+                    .findFirst()
+                    .orElse("ROLE_USER")
+                    .replace("ROLE_", "");
+            if ("ADMIN".equals(portal) && !"ADMIN".equals(userRole)) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                        .body(ApiResponse.error("This is a Customer account. Please sign in on the Customer Store Portal."));
+            }
+            if ("USER".equals(portal) && "ADMIN".equals(userRole)) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                        .body(ApiResponse.error("This is an Admin/Owner account. Please sign in on the Admin Dashboard."));
+            }
             dbUserOpt.ifPresent(u -> {
                 u.resetFailedAttempts();
                 userRepository.save(u);

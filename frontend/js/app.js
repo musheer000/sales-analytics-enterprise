@@ -168,6 +168,10 @@ document.addEventListener('DOMContentLoaded', () => {
     switchAuthView('login');
     openModal('loginModal');
   });
+  document.getElementById('gateRegisterBtn')?.addEventListener('click', () => {
+    switchAuthView('register');
+    openModal('loginModal');
+  });
 
   // Only load analytics & SSE if authenticated as ADMIN
   const user = SalesAPI.getCurrentUser();
@@ -473,12 +477,12 @@ async function handleRegister() {
   const fullName = document.getElementById('regFullName').value.trim();
   const email = document.getElementById('regEmail').value.trim();
   const password = document.getElementById('regPassword').value;
-  const role = 'USER'; // Admin cannot self-register; always register as Customer
+  const role = 'ADMIN'; // Admin portal registration creates an Admin account
   const errEl = document.getElementById('registerError');
   const btn = document.getElementById('registerSubmitBtn');
   errEl.style.display = 'none';
-  if (!fullName || !email || password.length < 6) {
-    errEl.textContent = 'Enter your name, valid email, and a password (min 6 characters).';
+  if (!fullName || !email || !email.includes('@') || password.length < 8) {
+    errEl.textContent = 'Enter your full name, valid email, and a password (min 8 characters).';
     errEl.style.display = 'block';
     return;
   }

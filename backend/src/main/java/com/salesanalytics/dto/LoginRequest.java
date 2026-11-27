@@ -10,6 +10,8 @@ public class LoginRequest {
     @NotBlank(message = "Password is required")
     private String password;
 
+    private String portal; // Optional: "ADMIN" or "USER"
+
     public LoginRequest() {}
 
     public LoginRequest(String username, String password) {
@@ -22,4 +24,7 @@ public class LoginRequest {
 
     public String getPassword() { return password; }
     public void setPassword(String password) { this.password = password; }
+
+    public String getPortal() { return portal; }
+    public void setPortal(String portal) { this.portal = portal; }
 }

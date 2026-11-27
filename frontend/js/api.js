@@ -29,11 +29,11 @@ const SalesAPI = {
         return headers;
     },
 
-    async login(username, password) {
+    async login(username, password, portal = 'ADMIN') {
         const res = await fetch(`${API_BASE}/auth/login`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ username, password })
+            body: JSON.stringify({ username, password, portal })
         });
         const json = await res.json();
         if (!res.ok || !json.success) {
