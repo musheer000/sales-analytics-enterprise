@@ -28,7 +28,7 @@ public class UserOrder {
     @Column(name = "user_name", nullable = false, length = 100)
     private String userName;
 
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "product_id", nullable = false)
     private Product product;
 

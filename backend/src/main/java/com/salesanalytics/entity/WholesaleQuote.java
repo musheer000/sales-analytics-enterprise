@@ -24,7 +24,7 @@ public class WholesaleQuote {
     @Column(name = "quote_ref", nullable = false, unique = true, length = 50)
     private String quoteRef; // e.g. RFQ-20261127-0001
 
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "product_id", nullable = false)
     private Product product;
 
