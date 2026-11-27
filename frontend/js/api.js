@@ -113,7 +113,11 @@ const SalesAPI = {
     // Health Check
     async checkBackendHealth() {
         try {
-            const res = await fetch(`${API_BASE}/categories`, { method: 'GET', mode: 'cors' });
+            const res = await fetch(`${API_BASE}/analytics/summary`, {
+                method: 'GET',
+                mode: 'cors',
+                headers: this.getAuthHeaders()
+            });
             return res.ok;
         } catch (e) {
             return false;
