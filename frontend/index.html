@@ -748,9 +748,14 @@
             <h2 class="section-title">Product Approvals &amp; Wholesale RFQs</h2>
             <p class="section-subtitle">Accept or Reject seller bulk listings and monitor B2B price negotiations</p>
           </div>
-          <button class="btn-primary" id="refreshApprovalsBtn">
-            <i data-lucide="refresh-cw"></i> Refresh
-          </button>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;">
+            <button class="btn-secondary" id="clearAllDataBtn" style="color:#FF3B30;border-color:rgba(255,59,48,0.35);">
+              <i data-lucide="trash-2"></i> Clear All Sample Data
+            </button>
+            <button class="btn-primary" id="refreshApprovalsBtn">
+              <i data-lucide="refresh-cw"></i> Refresh
+            </button>
+          </div>
         </div>
 
         <div class="card table-card" style="margin-bottom:20px;">
@@ -1158,45 +1163,86 @@
 
 <!-- New Product Modal -->
 <div class="modal-overlay" id="newProductModal">
-  <div class="modal-box">
+  <div class="modal-box" style="max-width:640px;">
     <div class="modal-header">
-      <h2 class="modal-title">Add Product</h2>
+      <h2 class="modal-title">Add Global Wholesale / Retail Product</h2>
     </div>
-    <div class="modal-body">
+    <div class="modal-body" style="max-height:75vh;overflow-y:auto;">
       <div class="form-row">
         <div class="form-group">
-          <label class="form-label">Product Name</label>
-          <div class="input-wrap"><i data-lucide="package"></i><input type="text" class="form-input" id="newProdName" placeholder="Product name"></div>
+          <label class="form-label">Product Name *</label>
+          <div class="input-wrap"><i data-lucide="package"></i><input type="text" class="form-input" id="newProdName" placeholder="e.g. Organic Basmati Rice / Fresh Red Onions"></div>
         </div>
         <div class="form-group">
-          <label class="form-label">Category</label>
+          <label class="form-label">Category *</label>
           <div class="input-wrap"><i data-lucide="folder"></i><select class="form-input" id="newProdCategory"><option value="">Select…</option></select></div>
         </div>
       </div>
       <div class="form-row">
         <div class="form-group">
-          <label class="form-label">Price (₹)</label>
-          <div class="input-wrap"><i data-lucide="indian-rupee"></i><input type="number" class="form-input" id="newProdPrice" placeholder="0.00" step="0.01"></div>
+          <label class="form-label">Retail Price (USD) *</label>
+          <div class="input-wrap"><i data-lucide="dollar-sign"></i><input type="number" class="form-input" id="newProdPrice" placeholder="25.00" step="0.01"></div>
         </div>
         <div class="form-group">
-          <label class="form-label">Stock Qty</label>
-          <div class="input-wrap"><i data-lucide="hash"></i><input type="number" class="form-input" id="newProdStock" placeholder="0" min="0"></div>
+          <label class="form-label">Wholesale Bulk Price (USD)</label>
+          <div class="input-wrap"><i data-lucide="tags"></i><input type="number" class="form-input" id="newProdWholesalePrice" placeholder="18.00" step="0.01"></div>
         </div>
       </div>
       <div class="form-row">
         <div class="form-group">
-          <label class="form-label">SKU Code</label>
-          <div class="input-wrap"><i data-lucide="barcode"></i><input type="text" class="form-input" id="newProdSku" placeholder="e.g. SKU-1001"></div>
+          <label class="form-label">Stock Qty *</label>
+          <div class="input-wrap"><i data-lucide="hash"></i><input type="number" class="form-input" id="newProdStock" placeholder="1000" min="0"></div>
         </div>
         <div class="form-group">
-          <label class="form-label">Description</label>
-          <div class="input-wrap"><i data-lucide="file-text"></i><input type="text" class="form-input" id="newProdDesc" placeholder="Description"></div>
+          <label class="form-label">MOQ / Bulk Tier / Unit</label>
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;">
+            <input type="number" class="form-input" id="newProdMoq" value="1" min="1" title="Minimum Order Qty" placeholder="MOQ">
+            <input type="number" class="form-input" id="newProdBulkMin" value="10" min="1" title="Bulk Tier Qty" placeholder="Bulk">
+            <select class="form-input" id="newProdUnit"><option>kg</option><option>pcs</option><option>boxes</option><option>cartons</option><option>sets</option></select>
+          </div>
         </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Origin Country</label>
+          <div class="input-wrap"><i data-lucide="globe"></i><input type="text" class="form-input" id="newProdCountry" value="India" placeholder="India, UAE, USA, China…"></div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">SKU Code</label>
+          <div class="input-wrap"><i data-lucide="barcode"></i><input type="text" class="form-input" id="newProdSku" placeholder="Auto-generated if blank"></div>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Product Image URL</label>
+          <div class="input-wrap"><i data-lucide="image"></i><input type="text" class="form-input" id="newProdImageUrl" placeholder="https://… or upload below"></div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Upload Image File</label>
+          <input type="file" class="form-input" id="newProdImageFile" accept="image/*" style="padding:7px;">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Grade / Quality Spec</label>
+          <input type="text" class="form-input" id="newProdGrade" placeholder="e.g. Export Grade A / Organic">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Packaging &amp; Shelf Life</label>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;">
+            <input type="text" class="form-input" id="newProdPackaging" placeholder="50kg Jute Bag">
+            <input type="text" class="form-input" id="newProdShelfLife" placeholder="12 Months">
+          </div>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Full Description &amp; Business Terms</label>
+        <input type="text" class="form-input" id="newProdDesc" placeholder="Harvest batch, certifications, shipping ports, negotiable terms…">
       </div>
     </div>
     <div class="modal-footer">
       <button class="btn btn-secondary" id="cancelProdBtn">Cancel</button>
-      <button class="btn btn-primary" id="saveProdBtn"><i data-lucide="save"></i> Save</button>
+      <button class="btn btn-primary" id="saveProdBtn"><i data-lucide="save"></i> Publish Product</button>
     </div>
   </div>
 </div>
@@ -1398,7 +1444,7 @@
   </div>
 </div>
 
-<script src="js/api.js?v=20261127_v16"></script>
-<script src="js/app.js?v=20261127_v16"></script>
+<script src="js/api.js?v=20261127_v17"></script>
+<script src="js/app.js?v=20261127_v17"></script>
 </body>
 </html>

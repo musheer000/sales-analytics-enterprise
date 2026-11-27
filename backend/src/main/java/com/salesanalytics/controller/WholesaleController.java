@@ -3,6 +3,7 @@ package com.salesanalytics.controller;
 import com.salesanalytics.dto.ApiResponse;
 import com.salesanalytics.entity.*;
 import com.salesanalytics.repository.*;
+import com.salesanalytics.service.MarketplaceAlgorithmService;
 import com.salesanalytics.service.RealtimeEventService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -31,6 +32,7 @@ public class WholesaleController {
     private final ProductRepository productRepo;
     private final AppUserRepository userRepo;
     private final UserOrderRepository orderRepo;
+    private final MarketplaceAlgorithmService algorithmService;
     private final RealtimeEventService realtimeEventService;
 
     private static final AtomicLong rfqCounter = new AtomicLong(System.currentTimeMillis() % 100000);
@@ -39,11 +41,13 @@ public class WholesaleController {
                                ProductRepository productRepo,
                                AppUserRepository userRepo,
                                UserOrderRepository orderRepo,
+                               MarketplaceAlgorithmService algorithmService,
                                RealtimeEventService realtimeEventService) {
         this.quoteRepo = quoteRepo;
         this.productRepo = productRepo;
         this.userRepo = userRepo;
         this.orderRepo = orderRepo;
+        this.algorithmService = algorithmService;
         this.realtimeEventService = realtimeEventService;
     }
 
@@ -66,6 +70,9 @@ public class WholesaleController {
 
         Product product = productRepo.findById(productId)
                 .orElseThrow(() -> new IllegalArgumentException("Product not found"));
+
+        // Enforce global trade compliance (India <-> Pakistan restriction)
+        algorithmService.validateTradeCompliance(product.getOriginCountry(), buyerCountry);
 
         if (requestedQty < 1) {
             return ResponseEntity.badRequest().body(ApiResponse.error("Quantity must be at least 1."));

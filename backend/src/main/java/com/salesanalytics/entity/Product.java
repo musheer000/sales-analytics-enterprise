@@ -62,6 +62,18 @@ public class Product {
     @Column(name = "negotiable", nullable = false)
     private boolean negotiable = true;
 
+    @Column(name = "image_url", columnDefinition = "LONGTEXT")
+    private String imageUrl; // Product photo URL or base64 data URI
+
+    @Column(name = "grade_spec", length = 120)
+    private String gradeSpec; // e.g. Export Grade A, Organic Certified
+
+    @Column(name = "packaging_info", length = 150)
+    private String packagingInfo; // e.g. 50kg Jute Bags, Vacuum Sealed
+
+    @Column(name = "shelf_life", length = 80)
+    private String shelfLife; // e.g. 12 Months, Fresh 7 Days
+
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
 
@@ -143,4 +155,16 @@ public class Product {
 
     public boolean isNegotiable() { return negotiable; }
     public void setNegotiable(boolean negotiable) { this.negotiable = negotiable; }
+
+    public String getImageUrl() { return imageUrl; }
+    public void setImageUrl(String imageUrl) { this.imageUrl = imageUrl; }
+
+    public String getGradeSpec() { return gradeSpec; }
+    public void setGradeSpec(String gradeSpec) { this.gradeSpec = gradeSpec; }
+
+    public String getPackagingInfo() { return packagingInfo; }
+    public void setPackagingInfo(String packagingInfo) { this.packagingInfo = packagingInfo; }
+
+    public String getShelfLife() { return shelfLife; }
+    public void setShelfLife(String shelfLife) { this.shelfLife = shelfLife; }
 }

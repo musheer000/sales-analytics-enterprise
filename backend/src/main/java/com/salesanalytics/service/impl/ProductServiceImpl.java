@@ -116,6 +116,16 @@ public class ProductServiceImpl implements ProductService {
         product.setStockQuantity(dto.getStockQuantity());
         product.setDescription(dto.getDescription());
         product.setCategory(category);
+        if (dto.getWholesalePrice() != null) product.setWholesalePrice(dto.getWholesalePrice());
+        if (dto.getMoq() != null) product.setMoq(Math.max(1, dto.getMoq()));
+        if (dto.getBulkMinQty() != null) product.setBulkMinQty(Math.max(1, dto.getBulkMinQty()));
+        if (dto.getUnitType() != null) product.setUnitType(dto.getUnitType());
+        if (dto.getOriginCountry() != null) product.setOriginCountry(dto.getOriginCountry());
+        if (dto.getImageUrl() != null) product.setImageUrl(dto.getImageUrl());
+        if (dto.getGradeSpec() != null) product.setGradeSpec(dto.getGradeSpec());
+        if (dto.getPackagingInfo() != null) product.setPackagingInfo(dto.getPackagingInfo());
+        if (dto.getShelfLife() != null) product.setShelfLife(dto.getShelfLife());
+        product.setNegotiable(dto.isNegotiable());
 
         Product updated = productRepository.save(product);
         return productMapper.toDTO(updated);

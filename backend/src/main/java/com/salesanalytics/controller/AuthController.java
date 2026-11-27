@@ -173,12 +173,13 @@ public class AuthController {
             }
         }
 
+        String userRole;
         try {
             Authentication authResult = authenticationManager.authenticate(
                     new UsernamePasswordAuthenticationToken(username, request.getPassword())
             );
             String portal = request.getPortal() != null ? request.getPortal().trim().toUpperCase() : "";
-            String userRole = authResult.getAuthorities().stream()
+            userRole = authResult.getAuthorities().stream()
                     .map(GrantedAuthority::getAuthority)
                     .findFirst()
                     .orElse("ROLE_USER")
@@ -193,6 +194,7 @@ public class AuthController {
             }
             dbUserOpt.ifPresent(u -> {
                 u.resetFailedAttempts();
+                u.setLastLoginAt(LocalDateTime.now());
                 userRepository.save(u);
             });
             builtInLocks.remove(key);
@@ -224,17 +226,15 @@ public class AuthController {
             }
         }
 
-        String targetEmail = username.contains("@") ? username.toLowerCase() : ownerEmail;
-        otpService.sendOtp(targetEmail, "LOGIN", username);
-        String masked = otpService.maskEmail(targetEmail);
+        // Password verified — issue JWT immediately (no OTP required on login)
+        String canonicalUsername = dbUserOpt.map(AppUser::getEmail).orElse(username);
+        String token = jwtService.generateToken(canonicalUsername, userRole);
 
-        return ResponseEntity.ok(ApiResponse.ok("2FA OTP sent to " + masked, Map.of(
-                "otpRequired", true,
-                "purpose", "LOGIN",
-                "username", username,
-                "email", targetEmail,
-                "maskedEmail", masked,
-                "expiresInSeconds", 300
+        return ResponseEntity.ok(ApiResponse.ok("Signed in successfully", Map.of(
+                "otpRequired", false,
+                "token", token,
+                "username", canonicalUsername,
+                "role", userRole
         )));
     }
 

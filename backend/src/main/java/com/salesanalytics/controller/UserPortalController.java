@@ -3,6 +3,7 @@ package com.salesanalytics.controller;
 import com.salesanalytics.dto.ApiResponse;
 import com.salesanalytics.entity.*;
 import com.salesanalytics.repository.*;
+import com.salesanalytics.service.MarketplaceAlgorithmService;
 import com.salesanalytics.service.RealtimeEventService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -29,6 +30,11 @@ public class UserPortalController {
     private final UserOrderRepository userOrderRepo;
     private final ProductReviewRepository reviewRepo;
     private final AppUserRepository userRepo;
+    private final WholesaleQuoteRepository quoteRepo;
+    private final SaleRepository saleRepo;
+    private final CustomerRepository customerRepo;
+    private final ChatMessageRepository chatRepo;
+    private final MarketplaceAlgorithmService algorithmService;
     private final RealtimeEventService realtimeEventService;
 
     private static final AtomicLong orderCounter = new AtomicLong(System.currentTimeMillis() % 100000);
@@ -38,12 +44,22 @@ public class UserPortalController {
                                 UserOrderRepository userOrderRepo,
                                 ProductReviewRepository reviewRepo,
                                 AppUserRepository userRepo,
+                                WholesaleQuoteRepository quoteRepo,
+                                SaleRepository saleRepo,
+                                CustomerRepository customerRepo,
+                                ChatMessageRepository chatRepo,
+                                MarketplaceAlgorithmService algorithmService,
                                 RealtimeEventService realtimeEventService) {
         this.productRepo = productRepo;
         this.categoryRepo = categoryRepo;
         this.userOrderRepo = userOrderRepo;
         this.reviewRepo = reviewRepo;
         this.userRepo = userRepo;
+        this.quoteRepo = quoteRepo;
+        this.saleRepo = saleRepo;
+        this.customerRepo = customerRepo;
+        this.chatRepo = chatRepo;
+        this.algorithmService = algorithmService;
         this.realtimeEventService = realtimeEventService;
     }
 
@@ -98,6 +114,10 @@ public class UserPortalController {
         String originCountry = String.valueOf(req.getOrDefault("originCountry", "India")).trim();
         String description = String.valueOf(req.getOrDefault("description", "")).trim();
         boolean negotiable = Boolean.parseBoolean(String.valueOf(req.getOrDefault("negotiable", true)));
+        String imageUrl = req.get("imageUrl") != null ? String.valueOf(req.get("imageUrl")).trim() : null;
+        String gradeSpec = String.valueOf(req.getOrDefault("gradeSpec", "")).trim();
+        String packagingInfo = String.valueOf(req.getOrDefault("packagingInfo", "")).trim();
+        String shelfLife = String.valueOf(req.getOrDefault("shelfLife", "")).trim();
 
         String sku = "B2B-" + Long.toHexString(System.currentTimeMillis()).toUpperCase();
 
@@ -116,6 +136,10 @@ public class UserPortalController {
         p.setSellerEmail(sellerEmail);
         p.setSellerName(seller.getFullName());
         p.setNegotiable(negotiable);
+        p.setImageUrl(imageUrl);
+        p.setGradeSpec(gradeSpec);
+        p.setPackagingInfo(packagingInfo);
+        p.setShelfLife(shelfLife);
         // Admin/Owner listings auto-approve; user/supplier listings require Admin Accept/Reject
         p.setApprovalStatus("ADMIN".equalsIgnoreCase(seller.getRole()) ? "APPROVED" : "PENDING");
         productRepo.save(p);
@@ -205,6 +229,11 @@ public class UserPortalController {
         m.put("avgRating", avgRating != null ? Math.round(avgRating * 10.0) / 10.0 : 0.0);
         m.put("reviewCount", reviewCount);
         m.put("inStock", p.getStockQuantity() > 0);
+        m.put("imageUrl", p.getImageUrl() != null ? p.getImageUrl() : "");
+        m.put("gradeSpec", p.getGradeSpec() != null ? p.getGradeSpec() : "");
+        m.put("packagingInfo", p.getPackagingInfo() != null ? p.getPackagingInfo() : "");
+        m.put("shelfLife", p.getShelfLife() != null ? p.getShelfLife() : "");
+        m.put("trendingScore", algorithmService.computeTrendingScore(reviewCount * 10L, avgRating != null ? avgRating : 0.0, p.getStockQuantity()));
         return m;
     }
 
@@ -311,6 +340,9 @@ public class UserPortalController {
         Product product = productRepo.findById(productId)
                 .orElseThrow(() -> new IllegalArgumentException("Product not found"));
 
+        // Trade Compliance Algorithm (worldwide trade allowed; India <-> Pakistan restricted)
+        algorithmService.validateTradeCompliance(product.getOriginCountry(), buyerCountry);
+
         if (quantity < product.getMoq()) {
             return ResponseEntity.badRequest().body(ApiResponse.error(
                     "Minimum order quantity (MOQ) for this product is " + product.getMoq() + " " + product.getUnitType() + "."));
@@ -321,11 +353,11 @@ public class UserPortalController {
                     "Only " + product.getStockQuantity() + " " + product.getUnitType() + " available."));
         }
 
-        boolean isWholesale = quantity >= product.getBulkMinQty();
-        BigDecimal unitPrice = (isWholesale && product.getWholesalePrice() != null)
-                ? product.getWholesalePrice()
-                : product.getPrice();
-        BigDecimal totalAmount = unitPrice.multiply(BigDecimal.valueOf(quantity));
+        // Dynamic Multi-Tier Bulk Pricing Algorithm
+        Map<String, Object> pricing = algorithmService.calculateDynamicBulkPricing(product, quantity);
+        boolean isWholesale = (Boolean) pricing.get("isWholesale");
+        BigDecimal unitPrice = (BigDecimal) pricing.get("unitPrice");
+        BigDecimal totalAmount = (BigDecimal) pricing.get("totalAmount");
 
         // Generate order ref
         String orderRef = (isWholesale ? "UO-BULK-" : "UO-")
@@ -459,9 +491,31 @@ public class UserPortalController {
             @RequestBody Map<String, String> req) {
         UserOrder order = userOrderRepo.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Order not found"));
-        order.setStatus(req.getOrDefault("status", order.getStatus()).toUpperCase());
+        String nextStatus = req.getOrDefault("status", order.getStatus()).toUpperCase();
+        order.setStatus(nextStatus);
         userOrderRepo.save(order);
-        return ResponseEntity.ok(ApiResponse.ok("Order status updated", null));
+        realtimeEventService.publish("ORDER_STATUS",
+                "Order " + order.getOrderRef() + " is now " + nextStatus,
+                order.getUserName());
+        return ResponseEntity.ok(ApiResponse.ok("Order status updated to " + nextStatus, null));
+    }
+
+    // ── ADMIN: Clear all demo/sample data (requires explicit confirmation) ────
+    @PostMapping("/admin/clear-all-data")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<ApiResponse<String>> clearAllData(@RequestBody Map<String, String> req) {
+        if (!"CLEAR_ALL_DATA".equals(req.get("confirm"))) {
+            return ResponseEntity.badRequest().body(ApiResponse.error("Confirmation token CLEAR_ALL_DATA required."));
+        }
+        reviewRepo.deleteAll();
+        quoteRepo.deleteAll();
+        userOrderRepo.deleteAll();
+        chatRepo.deleteAll();
+        saleRepo.deleteAll();
+        productRepo.deleteAll();
+        customerRepo.deleteAll();
+        realtimeEventService.publish("DATA_CLEARED", "All sample data cleared by Admin", "Admin");
+        return ResponseEntity.ok(ApiResponse.ok("All products, orders, quotes, sales & chats cleared. Ready for fresh Admin listings.", "CLEARED"));
     }
 
     // ── USER: Dashboard summary (own stats) ───────────────────────────────────
@@ -470,9 +524,12 @@ public class UserPortalController {
         String userEmail = auth.getName();
         List<UserOrder> orders = userOrderRepo.findByUserEmailOrderByCreatedAtDesc(userEmail);
         long totalOrders = orders.size();
-        long paidOrders = orders.stream().filter(o -> "PAID".equals(o.getStatus())).count();
+        long paidOrders = orders.stream().filter(o ->
+                "PAID".equals(o.getStatus()) || "APPROVED".equals(o.getStatus())
+                || "ORDERED".equals(o.getStatus()) || "SHIPPED".equals(o.getStatus())
+                || "DELIVERED".equals(o.getStatus())).count();
         BigDecimal totalSpent = orders.stream()
-                .filter(o -> "PAID".equals(o.getStatus()))
+                .filter(o -> !"CANCELLED".equals(o.getStatus()))
                 .map(UserOrder::getTotalAmount)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
         List<UserOrder> recentOrders = orders.stream().limit(5).toList();

@@ -1493,21 +1493,53 @@ function initModals() {
     } catch (e) { showToast(e.message, 'error'); }
   });
 
-  // New Product
+  // New Product (with image upload & wholesale specs)
   document.getElementById('addProductBtn')?.addEventListener('click', () => openModal('newProductModal'));
   document.getElementById('cancelProdBtn')?.addEventListener('click', () => closeModal('newProductModal'));
+  document.getElementById('newProdImageFile')?.addEventListener('change', e => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        const maxW = 480;
+        const scale = Math.min(1, maxW / img.width);
+        canvas.width = Math.round(img.width * scale);
+        canvas.height = Math.round(img.height * scale);
+        canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+        document.getElementById('newProdImageUrl').value = canvas.toDataURL('image/jpeg', 0.78);
+        showToast('Image attached & compressed ✅', 'info');
+      };
+      img.src = reader.result;
+    };
+    reader.readAsDataURL(file);
+  });
   document.getElementById('saveProdBtn')?.addEventListener('click', async () => {
     const name = document.getElementById('newProdName').value.trim();
     const categoryId = Number(document.getElementById('newProdCategory').value);
     const price = Number(document.getElementById('newProdPrice').value);
+    const wholesalePrice = Number(document.getElementById('newProdWholesalePrice')?.value) || (price * 0.85);
     const stockQuantity = Number(document.getElementById('newProdStock').value);
-    const sku = document.getElementById('newProdSku').value.trim() || `SKU-${Date.now().toString().slice(-6)}`;
+    const moq = Number(document.getElementById('newProdMoq')?.value) || 1;
+    const bulkMinQty = Number(document.getElementById('newProdBulkMin')?.value) || 10;
+    const unitType = document.getElementById('newProdUnit')?.value || 'kg';
+    const originCountry = document.getElementById('newProdCountry')?.value.trim() || 'India';
+    const sku = document.getElementById('newProdSku').value.trim() || `B2B-${Date.now().toString().slice(-6)}`;
+    const imageUrl = document.getElementById('newProdImageUrl')?.value.trim() || '';
+    const gradeSpec = document.getElementById('newProdGrade')?.value.trim() || '';
+    const packagingInfo = document.getElementById('newProdPackaging')?.value.trim() || '';
+    const shelfLife = document.getElementById('newProdShelfLife')?.value.trim() || '';
     const description = document.getElementById('newProdDesc').value.trim();
     if (!name || !categoryId || !(price > 0)) return showToast('Name, category, and positive price are required', 'error');
     try {
-      await SalesAPI.createProduct({ name, categoryId, price, stockQuantity, sku, description });
+      await SalesAPI.createProduct({
+        name, categoryId, price, wholesalePrice, stockQuantity, moq, bulkMinQty, unitType,
+        originCountry, sku, imageUrl, gradeSpec, packagingInfo, shelfLife, description, negotiable: true
+      });
       closeModal('newProductModal');
-      showToast('Product created', 'success');
+      showToast('Product published with full details & image ✅', 'success');
       addNotification('Product added', `${name} (${sku})`);
       loadAllData();
     } catch (e) { showToast(e.message, 'error'); }
@@ -2085,8 +2117,11 @@ async function loadAdminStoreOrders() {
         <td><span class="kpi-badge ${o.status === 'PAID' || o.status === 'DELIVERED' ? 'positive' : 'warning'}">${o.status}</span></td>
         <td>
           <select class="form-input" style="padding:4px 8px;font-size:12px;" onchange="updateStoreOrderStatus(${o.id}, this.value)">
-            <option value="PENDING" ${o.status === 'PENDING' ? 'selected' : ''}>PENDING</option>
+            <option value="PENDING" ${o.status === 'PENDING' ? 'selected' : ''}>PENDING APPROVAL</option>
+            <option value="APPROVED" ${o.status === 'APPROVED' ? 'selected' : ''}>APPROVED</option>
+            <option value="ORDERED" ${o.status === 'ORDERED' ? 'selected' : ''}>ORDERED</option>
             <option value="PAID" ${o.status === 'PAID' ? 'selected' : ''}>PAID</option>
+            <option value="SHIPPED" ${o.status === 'SHIPPED' ? 'selected' : ''}>SHIPPED</option>
             <option value="DELIVERED" ${o.status === 'DELIVERED' ? 'selected' : ''}>DELIVERED</option>
             <option value="CANCELLED" ${o.status === 'CANCELLED' ? 'selected' : ''}>CANCELLED</option>
           </select>
@@ -2235,3 +2270,19 @@ async function loadAdminWholesaleQuotes() {
 }
 
 document.getElementById('refreshApprovalsBtn')?.addEventListener('click', loadAdminApprovalsTab);
+document.getElementById('clearAllDataBtn')?.addEventListener('click', async () => {
+  const typed = prompt('⚠️ This will permanently clear all sample products, orders, quotes, sales & chats.\nType CLEAR_ALL_DATA to confirm:');
+  if (typed !== 'CLEAR_ALL_DATA') return showToast('Clear cancelled', 'info');
+  try {
+    const res = await fetch(`${API_BASE}/user/admin/clear-all-data`, {
+      method: 'POST',
+      headers: SalesAPI.getAuthHeaders({ 'Content-Type': 'application/json' }),
+      body: JSON.stringify({ confirm: 'CLEAR_ALL_DATA' })
+    });
+    const json = await res.json();
+    if (!res.ok) throw new Error(json.message || 'Failed to clear data');
+    showToast('All sample data cleared! Ready for fresh Admin products.', 'success');
+    loadAllData();
+    loadAdminApprovalsTab();
+  } catch (e) { showToast(e.message, 'error'); }
+});
