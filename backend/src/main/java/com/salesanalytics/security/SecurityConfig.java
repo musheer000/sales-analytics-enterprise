@@ -72,9 +72,9 @@ public class SecurityConfig {
 
     @Bean
     public UserDetailsService userDetailsService(AppUserRepository userRepository, PasswordEncoder passwordEncoder) {
-        Map<String, UserDetails> builtIn = Map.of(
-                "admin", User.builder().username("admin").password(passwordEncoder.encode("admin123")).roles("ADMIN").build(),
-                "shaikmusheer07@gmail.com", User.builder().username("shaikmusheer07@gmail.com").password(passwordEncoder.encode("77889966")).roles("ADMIN").build()
+        Map<String, String> builtInHashes = Map.of(
+                "admin", passwordEncoder.encode("admin123"),
+                "shaikmusheer07@gmail.com", passwordEncoder.encode("77889966")
         );
 
         return username -> {
@@ -88,9 +88,14 @@ public class SecurityConfig {
                         .disabled(!u.isVerified())
                         .build();
             }
-            UserDetails fallback = builtIn.get(username.toLowerCase());
-            if (fallback != null) {
-                return fallback;
+            String key = username.toLowerCase();
+            String hash = builtInHashes.get(key);
+            if (hash != null) {
+                return User.builder()
+                        .username(key)
+                        .password(hash)
+                        .roles("ADMIN")
+                        .build();
             }
             throw new UsernameNotFoundException("User not found: " + username);
         };
