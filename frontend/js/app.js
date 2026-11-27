@@ -199,8 +199,21 @@ function initNavigation() {
     products: 'Products Catalog',
     sales: 'Sales & Orders',
     customers: 'Customers',
-    analytics: 'Advanced Reports'
+    analytics: 'Advanced Reports',
+    'support-chat': 'Customer Chat & Store Orders'
   };
+  const sidebar = document.getElementById('sidebar');
+  const backdrop = document.getElementById('sidebarBackdrop');
+  const closeMobileSidebar = () => {
+    sidebar?.classList.remove('mobile-open');
+    backdrop?.classList.remove('open');
+  };
+  document.getElementById('mobileSidebarBtn')?.addEventListener('click', () => {
+    sidebar?.classList.toggle('mobile-open');
+    backdrop?.classList.toggle('open');
+  });
+  backdrop?.addEventListener('click', closeMobileSidebar);
+
   document.querySelectorAll('.nav-item[data-tab]').forEach(btn => {
     btn.addEventListener('click', () => {
       const tab = btn.dataset.tab;
@@ -210,7 +223,9 @@ function initNavigation() {
       document.getElementById(`tab-${tab}`)?.classList.add('active');
       const titleEl = document.getElementById('pageTitle');
       if (titleEl) titleEl.textContent = titles[tab] || 'Dashboard';
+      closeMobileSidebar();
       if (tab === 'analytics') renderAnalyticsCharts();
+      if (tab === 'support-chat') loadAdminSupportData();
     });
   });
 }
@@ -488,6 +503,11 @@ async function handleVerifyOtp() {
     updateAuthUI();
     showToast(`2FA verified! Signed in as ${data.username} (${data.role})`, 'success');
     addNotification('2FA OTP Verified', `Signed in as ${data.username}`);
+    if (String(data.role).toUpperCase() === 'USER') {
+      localStorage.setItem('user_token', SalesAPI.getToken());
+      window.location.href = 'user.html';
+      return;
+    }
     loadAllData();
   } catch (err) {
     errEl.textContent = err.message || 'Invalid OTP code';
@@ -1840,3 +1860,143 @@ function initCsvProductImport() {
     if (ok > 0) loadAllData();
   });
 }
+
+// ─── Admin Support Chat & Self-Service Store Orders ───────────────────────────
+let activeAdminChatEmail = null;
+
+async function loadAdminSupportData() {
+  await Promise.all([loadAdminChatInbox(), loadAdminStoreOrders()]);
+}
+
+async function loadAdminChatInbox() {
+  const container = document.getElementById('adminChatThreads');
+  if (!container) return;
+  try {
+    const res = await fetch(`${API_BASE}/chat/admin/inbox`, { headers: SalesAPI.getAuthHeaders() });
+    if (!res.ok) {
+      container.innerHTML = '<div class="empty-cell" style="padding:24px;">Sign in as Admin to view customer messages.</div>';
+      return;
+    }
+    const json = await res.json();
+    const threads = json.data?.threads || [];
+    const totalUnread = json.data?.totalUnread || 0;
+    const badge = document.getElementById('adminChatBadge');
+    if (badge) {
+      badge.style.display = totalUnread > 0 ? 'inline-block' : 'none';
+      badge.textContent = totalUnread;
+    }
+    if (!threads.length) {
+      container.innerHTML = '<div class="empty-cell" style="padding:24px;">No customer conversations yet.</div>';
+      return;
+    }
+    container.innerHTML = threads.map(t => `
+      <div class="chat-thread-item ${activeAdminChatEmail === t.userEmail ? 'active' : ''}" onclick="openAdminChatThread('${t.userEmail}','${String(t.userName).replace(/'/g, "\\'")}')">
+        <div style="display:flex;justify-content:space-between;align-items:center;">
+          <strong>${t.userName}</strong>
+          ${t.unreadCount > 0 ? `<span style="background:#FF3B30;color:#fff;font-size:10px;padding:1px 6px;border-radius:10px;font-weight:700;">${t.unreadCount}</span>` : ''}
+        </div>
+        <div style="font-size:11.5px;color:var(--text-muted);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${t.latestMessage || ''}</div>
+      </div>
+    `).join('');
+  } catch (_) {
+    container.innerHTML = '<div class="empty-cell" style="padding:24px;">Unable to load chat inbox.</div>';
+  }
+}
+
+window.openAdminChatThread = async function (userEmail, userName) {
+  activeAdminChatEmail = userEmail;
+  document.getElementById('activeChatUserTitle').textContent = userName || userEmail;
+  document.getElementById('activeChatUserEmail').textContent = userEmail;
+  const input = document.getElementById('adminChatReplyInput');
+  const btn = document.getElementById('adminChatSendBtn');
+  if (input) input.disabled = false;
+  if (btn) btn.disabled = false;
+
+  const box = document.getElementById('adminChatMessages');
+  try {
+    const res = await fetch(`${API_BASE}/chat/admin/thread/${encodeURIComponent(userEmail)}`, { headers: SalesAPI.getAuthHeaders() });
+    const json = await res.json();
+    const msgs = json.data || [];
+    box.innerHTML = msgs.length ? msgs.map(m => `
+      <div class="admin-msg-bubble ${m.senderRole === 'ADMIN' ? 'from-admin' : 'from-user'}">
+        ${m.productName ? `<div style="font-size:11px;opacity:0.8;margin-bottom:3px;">📦 ${m.productName}</div>` : ''}
+        <div>${m.message}</div>
+        <div style="font-size:10px;opacity:0.65;margin-top:3px;">${new Date(m.createdAt).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})}</div>
+      </div>
+    `).join('') : '<div class="empty-cell" style="padding:30px;">No messages in this thread.</div>';
+    box.scrollTop = box.scrollHeight;
+    loadAdminChatInbox();
+  } catch (_) {}
+};
+
+document.getElementById('refreshSupportBtn')?.addEventListener('click', loadAdminSupportData);
+document.getElementById('adminChatSendBtn')?.addEventListener('click', async () => {
+  const input = document.getElementById('adminChatReplyInput');
+  const text = input?.value?.trim();
+  if (!text || !activeAdminChatEmail) return;
+  input.value = '';
+  try {
+    const res = await fetch(`${API_BASE}/chat/admin/reply`, {
+      method: 'POST',
+      headers: SalesAPI.getAuthHeaders({ 'Content-Type': 'application/json' }),
+      body: JSON.stringify({ recipientEmail: activeAdminChatEmail, message: text })
+    });
+    if (!res.ok) throw new Error('Reply failed');
+    openAdminChatThread(activeAdminChatEmail, document.getElementById('activeChatUserTitle').textContent);
+  } catch (e) { showToast(e.message, 'error'); }
+});
+document.getElementById('adminChatReplyInput')?.addEventListener('keydown', e => {
+  if (e.key === 'Enter') document.getElementById('adminChatSendBtn')?.click();
+});
+
+async function loadAdminStoreOrders() {
+  const tbody = document.getElementById('adminStoreOrdersBody');
+  if (!tbody) return;
+  try {
+    const res = await fetch(`${API_BASE}/user/admin/orders`, { headers: SalesAPI.getAuthHeaders() });
+    if (!res.ok) {
+      tbody.innerHTML = '<tr><td colspan="8" class="empty-cell">Sign in as Admin to view store orders.</td></tr>';
+      return;
+    }
+    const json = await res.json();
+    const orders = json.data?.orders || [];
+    const sumEl = document.getElementById('storeOrdersSummary');
+    if (sumEl) sumEl.textContent = `${json.data.totalOrders} total • ${json.data.paidOrders} paid • ${json.data.pendingOrders} pending`;
+    if (!orders.length) {
+      tbody.innerHTML = '<tr><td colspan="8" class="empty-cell">No customer store orders yet.</td></tr>';
+      return;
+    }
+    tbody.innerHTML = orders.map(o => `
+      <tr>
+        <td><code>${o.orderRef}</code></td>
+        <td><strong>${o.userName}</strong><br><span style="font-size:11px;color:var(--text-muted);">${o.userEmail}</span></td>
+        <td>${o.productName}</td>
+        <td>${o.quantity}</td>
+        <td>$${Number(o.totalAmount).toFixed(2)}</td>
+        <td>${o.paymentMethod}</td>
+        <td><span class="kpi-badge ${o.status === 'PAID' || o.status === 'DELIVERED' ? 'positive' : 'warning'}">${o.status}</span></td>
+        <td>
+          <select class="form-input" style="padding:4px 8px;font-size:12px;" onchange="updateStoreOrderStatus(${o.id}, this.value)">
+            <option value="PENDING" ${o.status === 'PENDING' ? 'selected' : ''}>PENDING</option>
+            <option value="PAID" ${o.status === 'PAID' ? 'selected' : ''}>PAID</option>
+            <option value="DELIVERED" ${o.status === 'DELIVERED' ? 'selected' : ''}>DELIVERED</option>
+            <option value="CANCELLED" ${o.status === 'CANCELLED' ? 'selected' : ''}>CANCELLED</option>
+          </select>
+        </td>
+      </tr>
+    `).join('');
+  } catch (_) {}
+}
+
+window.updateStoreOrderStatus = async function (id, status) {
+  try {
+    const res = await fetch(`${API_BASE}/user/admin/orders/${id}/status`, {
+      method: 'PUT',
+      headers: SalesAPI.getAuthHeaders({ 'Content-Type': 'application/json' }),
+      body: JSON.stringify({ status })
+    });
+    if (!res.ok) throw new Error('Update failed');
+    showToast(`Order #${id} marked ${status}`, 'success');
+    loadAdminStoreOrders();
+  } catch (e) { showToast(e.message, 'error'); }
+};

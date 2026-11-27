@@ -23,9 +23,11 @@ import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.ConcurrentHashMap;
 
 @RestController
 @RequestMapping("/api/auth")
@@ -42,6 +44,22 @@ public class AuthController {
     @Value("${app.mail.username:shaikmusheer07@gmail.com}")
     private String ownerEmail;
 
+    private static class BuiltInLock {
+        int attempts = 0;
+        LocalDateTime lockedUntil = null;
+        boolean isLocked() { return lockedUntil != null && LocalDateTime.now().isBefore(lockedUntil); }
+        void recordFailure() {
+            attempts++;
+            if (attempts >= 5) {
+                long mins = (long) Math.min(1440, 10 * Math.pow(2, attempts - 5));
+                lockedUntil = LocalDateTime.now().plusMinutes(mins);
+            }
+        }
+        void reset() { attempts = 0; lockedUntil = null; }
+        long remainingSeconds() { return isLocked() ? Math.max(1, Duration.between(LocalDateTime.now(), lockedUntil).getSeconds()) : 0; }
+    }
+    private final Map<String, BuiltInLock> builtInLocks = new ConcurrentHashMap<>();
+
     public AuthController(
             AuthenticationManager authenticationManager,
             JwtService jwtService,
@@ -57,19 +75,24 @@ public class AuthController {
         this.userDetailsService = userDetailsService;
     }
 
+    // ── REGISTER ─────────────────────────────────────────────────────────────
     @PostMapping("/register")
     public ResponseEntity<ApiResponse<Map<String, Object>>> register(@RequestBody Map<String, String> req) {
         String fullName = req.getOrDefault("fullName", "").trim();
         String email = req.getOrDefault("email", "").trim().toLowerCase();
         String password = req.getOrDefault("password", "");
-        String requestedRole = req.getOrDefault("role", "ADMIN").trim().toUpperCase();
-        String role = ("ADMIN".equals(requestedRole) || "VIEWER".equals(requestedRole)) ? requestedRole : "VIEWER";
+        // Public self-registration always creates a USER account; Admin access is reserved
+        String role = "USER";
 
         if (fullName.isBlank() || email.isBlank() || !email.contains("@")) {
             return ResponseEntity.badRequest().body(ApiResponse.error("Valid full name and email are required."));
         }
-        if (password.length() < 6) {
-            return ResponseEntity.badRequest().body(ApiResponse.error("Password must be at least 6 characters."));
+        if (password.length() < 8) {
+            return ResponseEntity.badRequest().body(ApiResponse.error("Password must be at least 8 characters."));
+        }
+        if (email.equalsIgnoreCase(ownerEmail) || "admin".equalsIgnoreCase(email)) {
+            return ResponseEntity.status(HttpStatus.CONFLICT)
+                    .body(ApiResponse.error("This email is reserved for admin access. Please use a different email."));
         }
 
         Optional<AppUser> existing = userRepository.findByEmailIgnoreCase(email);
@@ -84,6 +107,7 @@ public class AuthController {
         user.setPasswordHash(passwordEncoder.encode(password));
         user.setRole(role);
         user.setVerified(false);
+        user.resetFailedAttempts();
         userRepository.save(user);
 
         otpService.sendOtp(email, "REGISTER", fullName);
@@ -108,25 +132,71 @@ public class AuthController {
                 .orElseThrow(() -> new IllegalArgumentException("User account not found."));
         user.setVerified(true);
         user.setLastLoginAt(LocalDateTime.now());
+        user.resetFailedAttempts();
         userRepository.save(user);
 
         String token = jwtService.generateToken(user.getEmail(), user.getRole());
-        return ResponseEntity.ok(ApiResponse.ok("Account verified & signed in", new LoginResponse(token, user.getEmail(), user.getRole())));
+        return ResponseEntity.ok(ApiResponse.ok("Account verified & signed in",
+                new LoginResponse(token, user.getEmail(), user.getRole())));
     }
 
+    // ── LOGIN (with progressive lockout) ─────────────────────────────────────
     @PostMapping("/login")
     public ResponseEntity<ApiResponse<Map<String, Object>>> login(@Valid @RequestBody LoginRequest request) {
         String username = request.getUsername().trim();
+
+        String key = username.toLowerCase();
+        Optional<AppUser> dbUserOpt = userRepository.findByEmailIgnoreCase(username);
+        if (dbUserOpt.isPresent()) {
+            AppUser dbUser = dbUserOpt.get();
+            if (dbUser.isLocked()) {
+                long remaining = dbUser.getRemainingLockSeconds();
+                return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
+                        .body(ApiResponse.error(formatLockMessage(remaining)));
+            }
+        } else {
+            BuiltInLock lock = builtInLocks.get(key);
+            if (lock != null && lock.isLocked()) {
+                return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
+                        .body(ApiResponse.error(formatLockMessage(lock.remainingSeconds())));
+            }
+        }
+
         try {
             authenticationManager.authenticate(
                     new UsernamePasswordAuthenticationToken(username, request.getPassword())
             );
+            dbUserOpt.ifPresent(u -> {
+                u.resetFailedAttempts();
+                userRepository.save(u);
+            });
+            builtInLocks.remove(key);
         } catch (DisabledException e) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN)
                     .body(ApiResponse.error("Account is not verified yet. Please complete OTP registration."));
         } catch (BadCredentialsException e) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                    .body(ApiResponse.error("Invalid username/email or password."));
+            if (dbUserOpt.isPresent()) {
+                AppUser u = dbUserOpt.get();
+                u.recordFailedAttempt();
+                userRepository.save(u);
+                if (u.isLocked()) {
+                    return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
+                            .body(ApiResponse.error("Too many failed attempts. " + formatLockMessage(u.getRemainingLockSeconds())));
+                }
+                int left = Math.max(0, 5 - u.getFailedLoginAttempts());
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                        .body(ApiResponse.error("Invalid credentials. " + left + " attempt(s) remaining before lockout."));
+            } else {
+                BuiltInLock lock = builtInLocks.computeIfAbsent(key, k -> new BuiltInLock());
+                lock.recordFailure();
+                if (lock.isLocked()) {
+                    return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
+                            .body(ApiResponse.error("Too many failed attempts. " + formatLockMessage(lock.remainingSeconds())));
+                }
+                int left = Math.max(0, 5 - lock.attempts);
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                        .body(ApiResponse.error("Invalid credentials. " + left + " attempt(s) remaining before lockout."));
+            }
         }
 
         String targetEmail = username.contains("@") ? username.toLowerCase() : ownerEmail;
@@ -158,16 +228,18 @@ public class AuthController {
         String role = details.getAuthorities().stream()
                 .map(GrantedAuthority::getAuthority)
                 .findFirst()
-                .orElse("ROLE_VIEWER")
+                .orElse("ROLE_USER")
                 .replace("ROLE_", "");
 
         userRepository.findByEmailIgnoreCase(details.getUsername()).ifPresent(u -> {
             u.setLastLoginAt(LocalDateTime.now());
+            u.resetFailedAttempts();
             userRepository.save(u);
         });
 
         String token = jwtService.generateToken(details.getUsername(), role);
-        return ResponseEntity.ok(ApiResponse.ok("2FA Login successful", new LoginResponse(token, details.getUsername(), role)));
+        return ResponseEntity.ok(ApiResponse.ok("2FA Login successful",
+                new LoginResponse(token, details.getUsername(), role)));
     }
 
     @PostMapping("/resend-otp")
@@ -187,6 +259,57 @@ public class AuthController {
         )));
     }
 
+    // ── UPDATE PROFILE ────────────────────────────────────────────────────────
+    @PutMapping("/profile")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> updateProfile(
+            @RequestBody Map<String, String> req, Authentication auth) {
+        String email = auth.getName();
+        AppUser user = userRepository.findByEmailIgnoreCase(email)
+                .orElseThrow(() -> new IllegalArgumentException("User not found"));
+
+        String fullName = req.get("fullName");
+        String phone = req.get("phone");
+        String defaultAddress = req.get("defaultAddress");
+
+        if (fullName != null && !fullName.isBlank()) user.setFullName(fullName.trim());
+        if (phone != null) user.setPhone(phone.trim());
+        if (defaultAddress != null) user.setDefaultAddress(defaultAddress.trim());
+        userRepository.save(user);
+
+        return ResponseEntity.ok(ApiResponse.ok("Profile updated", Map.of(
+                "fullName", user.getFullName(),
+                "email", user.getEmail(),
+                "role", user.getRole(),
+                "phone", user.getPhone() != null ? user.getPhone() : "",
+                "defaultAddress", user.getDefaultAddress() != null ? user.getDefaultAddress() : ""
+        )));
+    }
+
+    // ── CHANGE PASSWORD ───────────────────────────────────────────────────────
+    @PostMapping("/change-password")
+    public ResponseEntity<ApiResponse<Void>> changePassword(
+            @RequestBody Map<String, String> req, Authentication auth) {
+        String email = auth.getName();
+        AppUser user = userRepository.findByEmailIgnoreCase(email)
+                .orElseThrow(() -> new IllegalArgumentException("User not found"));
+
+        String currentPassword = req.getOrDefault("currentPassword", "");
+        String newPassword = req.getOrDefault("newPassword", "");
+
+        if (!passwordEncoder.matches(currentPassword, user.getPasswordHash())) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(ApiResponse.error("Current password is incorrect."));
+        }
+        if (newPassword.length() < 8) {
+            return ResponseEntity.badRequest().body(ApiResponse.error("New password must be at least 8 characters."));
+        }
+
+        user.setPasswordHash(passwordEncoder.encode(newPassword));
+        userRepository.save(user);
+        return ResponseEntity.ok(ApiResponse.ok("Password changed successfully", null));
+    }
+
+    // ── GET CURRENT USER ──────────────────────────────────────────────────────
     @GetMapping("/me")
     public ResponseEntity<ApiResponse<Map<String, Object>>> getCurrentUser() {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
@@ -198,13 +321,26 @@ public class AuthController {
         String role = auth.getAuthorities().stream()
                 .map(GrantedAuthority::getAuthority)
                 .findFirst()
-                .orElse("ROLE_VIEWER")
+                .orElse("ROLE_USER")
                 .replace("ROLE_", "");
+
+        AppUser user = userRepository.findByEmailIgnoreCase(username).orElse(null);
 
         return ResponseEntity.ok(ApiResponse.ok("User authenticated", Map.of(
                 "authenticated", true,
                 "username", username,
-                "role", role
+                "role", role,
+                "fullName", user != null ? user.getFullName() : username,
+                "phone", user != null && user.getPhone() != null ? user.getPhone() : "",
+                "defaultAddress", user != null && user.getDefaultAddress() != null ? user.getDefaultAddress() : ""
         )));
+    }
+
+    private String formatLockMessage(long remainingSeconds) {
+        long minutes = remainingSeconds / 60;
+        long seconds = remainingSeconds % 60;
+        return minutes > 0
+                ? String.format("Account locked. Try again in %d min %02d sec.", minutes, seconds)
+                : String.format("Account locked. Try again in %d seconds.", seconds);
     }
 }

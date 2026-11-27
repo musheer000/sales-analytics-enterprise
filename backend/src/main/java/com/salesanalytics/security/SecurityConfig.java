@@ -49,9 +49,16 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                 .requestMatchers("/api/auth/**").permitAll()
                 .requestMatchers("/swagger-ui/**", "/v3/api-docs/**", "/swagger-ui.html").permitAll()
-                .requestMatchers(HttpMethod.GET, "/api/**").permitAll()
-                .requestMatchers(HttpMethod.POST, "/api/**").hasRole("ADMIN")
-                .requestMatchers(HttpMethod.PUT, "/api/**").hasRole("ADMIN")
+                // Public read-only
+                .requestMatchers(HttpMethod.GET, "/api/analytics/**").permitAll()
+                .requestMatchers(HttpMethod.GET, "/api/realtime/**").permitAll()
+                // User-role endpoints (authenticated users, any role)
+                .requestMatchers("/api/user/**").authenticated()
+                .requestMatchers("/api/chat/**").authenticated()
+                // Admin-only endpoints
+                .requestMatchers(HttpMethod.GET, "/api/**").hasAnyRole("ADMIN", "USER")
+                .requestMatchers(HttpMethod.POST, "/api/**").hasAnyRole("ADMIN", "USER")
+                .requestMatchers(HttpMethod.PUT, "/api/**").hasAnyRole("ADMIN", "USER")
                 .requestMatchers(HttpMethod.DELETE, "/api/**").hasRole("ADMIN")
                 .anyRequest().authenticated()
             )
@@ -64,7 +71,6 @@ public class SecurityConfig {
     public UserDetailsService userDetailsService(AppUserRepository userRepository, PasswordEncoder passwordEncoder) {
         Map<String, UserDetails> builtIn = Map.of(
                 "admin", User.builder().username("admin").password(passwordEncoder.encode("admin123")).roles("ADMIN").build(),
-                "viewer", User.builder().username("viewer").password(passwordEncoder.encode("viewer123")).roles("VIEWER").build(),
                 "shaikmusheer07@gmail.com", User.builder().username("shaikmusheer07@gmail.com").password(passwordEncoder.encode("77889966")).roles("ADMIN").build()
         );
 

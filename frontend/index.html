@@ -54,11 +54,20 @@
         <span class="nav-label">Customers</span>
       </button>
       <div class="nav-divider"></div>
-      <div class="nav-section-label">Reports</div>
+      <div class="nav-section-label">Reports &amp; Support</div>
       <button class="nav-item" data-tab="analytics">
         <span class="nav-icon"><i data-lucide="area-chart"></i></span>
         <span class="nav-label">Advanced Reports</span>
       </button>
+      <button class="nav-item" data-tab="support-chat">
+        <span class="nav-icon"><i data-lucide="message-square"></i></span>
+        <span class="nav-label">Customer Chat &amp; Store</span>
+        <span class="nav-badge" id="adminChatBadge" style="display:none;margin-left:auto;background:#FF3B30;color:#fff;font-size:10px;font-weight:700;padding:1px 6px;border-radius:10px;">0</span>
+      </button>
+      <a class="nav-item" href="user.html" style="text-decoration:none;">
+        <span class="nav-icon"><i data-lucide="store"></i></span>
+        <span class="nav-label">User Store Portal ↗</span>
+      </a>
     </nav>
 
     <!-- Sidebar footer -->
@@ -76,6 +85,7 @@
       <span class="sidebar-meta-url">Spring Boot • MySQL 8.0 • :8080</span>
     </div>
   </aside>
+  <div class="sidebar-backdrop" id="sidebarBackdrop"></div>
 
   <!-- ═══════════════════════════════ MAIN ═══════════════════════════════ -->
   <div class="main-wrapper">
@@ -83,6 +93,9 @@
     <!-- ── TOP NAVIGATION BAR ── -->
     <header class="topbar">
       <div class="topbar-left">
+        <button class="mobile-sidebar-btn" id="mobileSidebarBtn" aria-label="Open menu">
+          <i data-lucide="menu"></i>
+        </button>
         <div class="page-title-block">
           <h1 class="page-title" id="pageTitle">Dashboard Overview</h1>
           <div class="page-meta">
@@ -668,6 +681,86 @@
         </div>
       </section>
 
+      <!-- ═══════════════════════ TAB: SUPPORT CHAT & STORE ORDERS ═══════════════════════ -->
+      <section class="tab-panel" id="tab-support-chat">
+        <div class="page-header-row">
+          <div>
+            <h2 class="section-title">Customer Support Chat &amp; Store Orders</h2>
+            <p class="section-subtitle">Reply to customer product questions, feedback &amp; manage self-service orders</p>
+          </div>
+          <button class="btn-primary" id="refreshSupportBtn">
+            <i data-lucide="refresh-cw"></i> Refresh
+          </button>
+        </div>
+
+        <div class="support-grid">
+          <!-- Left: User Threads -->
+          <div class="card support-inbox-card">
+            <div class="card-header">
+              <div class="card-title-group">
+                <div class="card-icon-badge info-badge"><i data-lucide="inbox"></i></div>
+                <div><h3 class="card-title">Customer Threads</h3><span class="card-subtitle">Click a customer to reply</span></div>
+              </div>
+            </div>
+            <div id="adminChatThreads" class="admin-chat-threads">
+              <div class="empty-cell" style="padding:28px;">Sign in as Admin to view customer messages.</div>
+            </div>
+          </div>
+
+          <!-- Right: Active Chat Thread -->
+          <div class="card support-thread-card">
+            <div class="card-header">
+              <div class="card-title-group">
+                <div class="card-icon-badge"><i data-lucide="message-circle"></i></div>
+                <div>
+                  <h3 class="card-title" id="activeChatUserTitle">Select a Conversation</h3>
+                  <span class="card-subtitle" id="activeChatUserEmail">Choose a customer thread on the left</span>
+                </div>
+              </div>
+            </div>
+            <div id="adminChatMessages" class="admin-chat-messages">
+              <div class="empty-cell" style="padding:40px;">No conversation selected.</div>
+            </div>
+            <div class="admin-chat-reply-bar">
+              <input type="text" class="form-input" id="adminChatReplyInput" placeholder="Write a reply to customer…" disabled />
+              <button class="btn-primary" id="adminChatSendBtn" disabled>Send Reply</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- User Store Orders Table -->
+        <div class="card table-card" style="margin-top:20px;">
+          <div class="card-header">
+            <div class="card-title-group">
+              <div class="card-icon-badge gold-badge"><i data-lucide="shopping-bag"></i></div>
+              <div>
+                <h3 class="card-title">Self-Service Store Orders</h3>
+                <span class="card-subtitle" id="storeOrdersSummary">Orders placed from User Store Portal</span>
+              </div>
+            </div>
+          </div>
+          <div class="table-scroll">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Order Ref</th>
+                  <th>Customer</th>
+                  <th>Product</th>
+                  <th>Qty</th>
+                  <th>Total (USD)</th>
+                  <th>Payment</th>
+                  <th>Status</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody id="adminStoreOrdersBody">
+                <tr><td colspan="8" class="empty-cell">Sign in as Admin to load store orders.</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
     </div><!-- /content-area -->
   </div><!-- /main-wrapper -->
 </div><!-- /app-shell -->
@@ -735,10 +828,10 @@
       </div>
       <div class="form-row">
         <div class="form-group">
-          <label class="form-label">Password (min 6 chars)</label>
+          <label class="form-label">Password (min 8 chars)</label>
           <div class="input-wrap">
             <i data-lucide="lock"></i>
-            <input type="password" class="form-input" id="regPassword" placeholder="••••••" autocomplete="new-password">
+            <input type="password" class="form-input" id="regPassword" placeholder="••••••••" autocomplete="new-password">
           </div>
         </div>
         <div class="form-group">
@@ -746,11 +839,13 @@
           <div class="input-wrap">
             <i data-lucide="shield"></i>
             <select class="form-input" id="regRole">
-              <option value="ADMIN">Admin (Full Access)</option>
-              <option value="VIEWER">Viewer (Read Only)</option>
+              <option value="USER">Customer / Store User (User Portal)</option>
             </select>
           </div>
         </div>
+      </div>
+      <div style="margin-top:8px;text-align:center;font-size:12.5px;">
+        <a href="user.html" style="color:var(--primary);font-weight:600;text-decoration:none;">Shopping? Open Customer Store Portal →</a>
       </div>
     </div>
 
