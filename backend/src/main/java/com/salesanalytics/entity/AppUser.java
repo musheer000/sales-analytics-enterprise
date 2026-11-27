@@ -34,7 +34,7 @@ public class AppUser {
 
     // ── Progressive Lockout Fields ─────────────────────────────────────────
     @Column(name = "failed_login_attempts")
-    private int failedLoginAttempts = 0;
+    private Integer failedLoginAttempts = 0;
 
     @Column(name = "locked_until")
     private LocalDateTime lockedUntil;
@@ -65,9 +65,10 @@ public class AppUser {
      * Attempt 7+ → doubles each time (40, 80, … capped at 24h)
      */
     public void recordFailedAttempt() {
-        this.failedLoginAttempts++;
-        if (this.failedLoginAttempts >= 5) {
-            int extraAttempts = this.failedLoginAttempts - 5; // 0, 1, 2, …
+        int next = getFailedLoginAttempts() + 1;
+        this.failedLoginAttempts = next;
+        if (next >= 5) {
+            int extraAttempts = next - 5; // 0, 1, 2, …
             long lockMinutes = (long) Math.min(1440, 10 * Math.pow(2, extraAttempts));
             this.lockedUntil = LocalDateTime.now().plusMinutes(lockMinutes);
         }
@@ -107,8 +108,8 @@ public class AppUser {
     public LocalDateTime getLastLoginAt() { return lastLoginAt; }
     public void setLastLoginAt(LocalDateTime lastLoginAt) { this.lastLoginAt = lastLoginAt; }
 
-    public int getFailedLoginAttempts() { return failedLoginAttempts; }
-    public void setFailedLoginAttempts(int failedLoginAttempts) { this.failedLoginAttempts = failedLoginAttempts; }
+    public int getFailedLoginAttempts() { return failedLoginAttempts != null ? failedLoginAttempts : 0; }
+    public void setFailedLoginAttempts(Integer failedLoginAttempts) { this.failedLoginAttempts = failedLoginAttempts != null ? failedLoginAttempts : 0; }
 
     public LocalDateTime getLockedUntil() { return lockedUntil; }
     public void setLockedUntil(LocalDateTime lockedUntil) { this.lockedUntil = lockedUntil; }
