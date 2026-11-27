@@ -93,6 +93,7 @@ a{text-decoration:none;color:var(--accent);}
 .sidebar {
   width:220px;min-width:220px;background:var(--bg2);border-right:1px solid var(--border);
   padding:20px 12px;position:sticky;top:60px;height:calc(100vh - 60px);
+  display:flex;flex-direction:column;gap:2px;
   overflow-y:auto;transition:transform 0.3s;
 }
 .sidebar-section { font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;
@@ -1006,7 +1007,11 @@ async function loadProducts() {
     chatSel.innerHTML = '<option value="">📦 Attach Product</option>' +
       allProducts.map(p => `<option value="${p.id}">${p.name}</option>`).join('');
     renderProducts(allProducts);
-  } catch(e) { showToast('Failed to load products: ' + e.message, 'error'); }
+  } catch(e) {
+    showToast('Failed to load products: ' + e.message, 'error');
+    const grid = document.getElementById('productsGrid');
+    if (grid) grid.innerHTML = `<div class="empty-state" style="grid-column:1/-1"><div class="icon">⚠️</div><h3>Could not load products</h3><p style="margin-bottom:14px">${esc(e.message)}</p><button class="btn-sm btn-primary" onclick="loadProducts()">Retry</button></div>`;
+  }
 }
 
 function filterProducts() {
