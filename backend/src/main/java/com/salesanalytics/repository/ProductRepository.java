@@ -22,6 +22,17 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
     @Query("SELECT p FROM Product p JOIN FETCH p.category")
     List<Product> findAllWithCategory();
 
+    @Query("SELECT p FROM Product p JOIN FETCH p.category WHERE p.approvalStatus = 'APPROVED' ORDER BY p.id DESC")
+    List<Product> findApprovedWithCategory();
+
+    @Query("SELECT p FROM Product p JOIN FETCH p.category WHERE p.approvalStatus = :status ORDER BY p.createdAt DESC")
+    List<Product> findByApprovalStatusWithCategory(@Param("status") String status);
+
+    @Query("SELECT p FROM Product p JOIN FETCH p.category WHERE LOWER(p.sellerEmail) = LOWER(:email) ORDER BY p.createdAt DESC")
+    List<Product> findBySellerEmailWithCategory(@Param("email") String email);
+
+    long countByApprovalStatus(String approvalStatus);
+
     @Query("SELECT p FROM Product p WHERE (:categoryId IS NULL OR p.category.id = :categoryId) " +
            "AND (:search IS NULL OR :search = '' OR LOWER(p.name) LIKE LOWER(CONCAT('%', :search, '%')) OR LOWER(p.sku) LIKE LOWER(CONCAT('%', :search, '%')))")
     Page<Product> searchProducts(@Param("categoryId") Long categoryId, @Param("search") String search, Pageable pageable);

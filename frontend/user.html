@@ -369,12 +369,68 @@ tbody tr:hover { background:var(--glass); }
 }
 .role-user { background:rgba(0,122,255,0.15);color:var(--accent); }
 
+/* ── WHOLESALE, RFQ & SPLIT-PANE DM CHAT ── */
+.badge-row { display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px; }
+.mini-badge { font-size:10.5px;font-weight:700;padding:3px 8px;border-radius:6px;display:inline-flex;align-items:center;gap:4px; }
+.badge-country { background:rgba(0,122,255,0.14);color:#4da3ff; }
+.badge-wholesale { background:rgba(88,86,214,0.18);color:#a5a3ff; }
+.badge-neg { background:rgba(52,199,89,0.15);color:var(--success); }
+.wholesale-price-line { font-size:12px;color:var(--success);font-weight:700;margin-top:2px; }
+.seller-line { font-size:11.5px;color:var(--text3);margin-top:3px; }
+.dm-shell {
+  display:grid;grid-template-columns:280px 1fr;gap:14px;
+  height:calc(100vh - 170px);min-height:460px;
+}
+.dm-list {
+  background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);
+  overflow-y:auto;display:flex;flex-direction:column;
+}
+.dm-list-head { padding:12px 14px;font-size:12px;font-weight:700;color:var(--text3);text-transform:uppercase;border-bottom:1px solid var(--border); }
+.dm-item {
+  padding:12px 14px;border-bottom:1px solid var(--border);cursor:pointer;
+  transition:background 0.15s;display:flex;flex-direction:column;gap:3px;text-align:left;background:transparent;border-left:none;border-right:none;border-top:none;width:100%;color:var(--text);
+}
+.dm-item:hover { background:var(--glass2); }
+.dm-item.active { background:rgba(0,122,255,0.15);border-left:3px solid var(--accent); }
+.dm-item-top { display:flex;justify-content:space-between;align-items:center;gap:6px;font-size:13.5px;font-weight:700; }
+.dm-item-sub { font-size:12px;color:var(--text3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis; }
+.dm-unread { background:var(--accent);color:#fff;font-size:10px;font-weight:700;padding:2px 6px;border-radius:99px; }
+.dm-back-btn { display:none;background:var(--glass2);border:none;color:var(--text);padding:6px 10px;border-radius:8px;font-size:12px;font-weight:600; }
+.status-approved { background:rgba(52,199,89,0.15);color:var(--success); }
+.status-rejected { background:rgba(255,59,48,0.15);color:var(--danger); }
+.status-countered { background:rgba(255,159,10,0.15);color:var(--warning); }
+.status-accepted { background:rgba(52,199,89,0.15);color:var(--success); }
+.status-ordered { background:rgba(0,122,255,0.15);color:var(--accent); }
+.rfq-tabs { display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap; }
+.rfq-tab { padding:8px 16px;border-radius:10px;border:1px solid var(--border);background:var(--bg2);color:var(--text2);font-size:13px;font-weight:600; }
+.rfq-tab.active { background:var(--accent);color:#fff;border-color:var(--accent); }
+
+/* ── MOBILE BOTTOM NAV BAR ── */
+.mobile-bottom-nav {
+  display:none;position:fixed;bottom:0;left:0;right:0;z-index:95;
+  background:rgba(17,17,24,0.95);backdrop-filter:blur(16px);
+  border-top:1px solid var(--border);height:60px;
+  justify-content:space-around;align-items:center;padding:0 4px;
+}
+[data-theme="light"] .mobile-bottom-nav { background:rgba(255,255,255,0.95); }
+.mbn-item {
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;
+  background:none;border:none;color:var(--text2);font-size:10.5px;font-weight:600;padding:6px 8px;border-radius:8px;min-width:54px;
+}
+.mbn-item.active { color:var(--accent); }
+.mbn-item span.ico { font-size:18px;line-height:1; }
+
 /* ── RESPONSIVE ── */
 @media (max-width:768px) {
-  .sidebar { display:none;position:fixed;top:60px;left:0;bottom:0;z-index:90;transform:translateX(-100%); }
+  .sidebar { display:none;position:fixed;top:60px;left:0;bottom:60px;z-index:90;transform:translateX(-100%); }
   .sidebar.mobile-open { display:flex;flex-direction:column;transform:translateX(0); }
   .mobile-menu-btn { display:flex; }
-  .main { padding:14px; }
+  .mobile-bottom-nav { display:flex; }
+  .main { padding:14px 14px 78px 14px; }
+  .dm-shell { grid-template-columns:1fr;height:calc(100vh - 200px); }
+  .dm-shell.thread-open .dm-list { display:none; }
+  .dm-shell:not(.thread-open) .chat-container { display:none; }
+  .dm-back-btn { display:inline-flex;align-items:center;gap:4px; }
   .products-grid { grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px; }
   .product-card { padding:14px; }
   .product-price { font-size:17px; }
@@ -435,19 +491,25 @@ tbody tr:hover { background:var(--glass); }
 
   <!-- SIDEBAR -->
   <aside class="sidebar" id="sidebar">
-    <div class="sidebar-section">My Store</div>
+    <div class="sidebar-section">Global Marketplace</div>
     <button class="sidebar-item active" data-view="shop" onclick="navTo('shop')">
-      <span class="icon">🛍️</span>Browse Products
+      <span class="icon">🛍️</span>Browse & Wholesale
+    </button>
+    <button class="sidebar-item" data-view="rfq" onclick="navTo('rfq')">
+      <span class="icon">🤝</span>Negotiations & RFQ
+    </button>
+    <button class="sidebar-item" data-view="sell" onclick="navTo('sell')">
+      <span class="icon">🏭</span>Sell Bulk / Listings
     </button>
     <button class="sidebar-item" data-view="orders" onclick="navTo('orders')">
       <span class="icon">📦</span>My Orders
     </button>
-    <div class="sidebar-section">Account</div>
+    <div class="sidebar-section">Direct Chat & Account</div>
+    <button class="sidebar-item" data-view="chat" onclick="navTo('chat')">
+      <span class="icon">💬</span>Direct Messages
+    </button>
     <button class="sidebar-item" data-view="dashboard" onclick="navTo('dashboard')">
       <span class="icon">📊</span>My Dashboard
-    </button>
-    <button class="sidebar-item" data-view="chat" onclick="navTo('chat')">
-      <span class="icon">💬</span>Chat with Admin
     </button>
     <button class="sidebar-item" data-view="profile" onclick="navTo('profile')">
       <span class="icon">👤</span>My Profile
@@ -536,16 +598,20 @@ tbody tr:hover { background:var(--glass); }
 
       <!-- SHOP VIEW -->
       <div class="view active" id="view-shop">
-        <div class="section-header">
+        <div class="section-header" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">
           <div>
-            <div class="section-title">🛍️ Browse Products</div>
-            <div class="section-sub" id="shopSubtitle">Loading products…</div>
+            <div class="section-title">🌍 Global Retail & Wholesale Marketplace</div>
+            <div class="section-sub" id="shopSubtitle">Order single units or bulk wholesale from any country</div>
           </div>
+          <button class="btn-sm btn-primary" onclick="navTo('sell')" style="padding:9px 14px">+ List Bulk Product</button>
         </div>
         <div class="products-filter-bar">
-          <input class="search-input" id="productSearch" type="text" placeholder="🔍  Search products…" oninput="filterProducts()"/>
+          <input class="search-input" id="productSearch" type="text" placeholder="🔍 Search products, sellers, countries…" oninput="filterProducts()"/>
           <select class="filter-select" id="categoryFilter" onchange="filterProducts()">
             <option value="">All Categories</option>
+          </select>
+          <select class="filter-select" id="countryFilter" onchange="filterProducts()">
+            <option value="">All Countries</option>
           </select>
           <select class="filter-select" id="sortFilter" onchange="filterProducts()">
             <option value="name">Sort: Name</option>
@@ -556,6 +622,71 @@ tbody tr:hover { background:var(--glass); }
         </div>
         <div class="products-grid" id="productsGrid">
           <div class="empty-state" style="grid-column:1/-1"><div class="icon">⏳</div><h3>Loading products…</h3></div>
+        </div>
+      </div>
+
+      <!-- NEGOTIATIONS / RFQ VIEW -->
+      <div class="view" id="view-rfq">
+        <div class="section-header">
+          <div>
+            <div class="section-title">🤝 Bulk Negotiations & Quotes (RFQ)</div>
+            <div class="section-sub">Negotiate prices, MOQ, quality specs, and convert accepted quotes to orders</div>
+          </div>
+        </div>
+        <div class="rfq-tabs">
+          <button class="rfq-tab active" id="rfqTabSent" onclick="switchRfqTab('sent')">My Sent Quotes (Buyer)</button>
+          <button class="rfq-tab" id="rfqTabReceived" onclick="switchRfqTab('received')">Received Quotes (Seller)</button>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr>
+              <th>RFQ Ref</th><th>Product</th><th>Qty</th><th>Original</th><th>Proposed</th><th>Counter / Agreed</th><th>Country</th><th>Status</th><th>Actions</th>
+            </tr></thead>
+            <tbody id="rfqTableBody">
+              <tr><td colspan="9" style="text-align:center;padding:24px;color:var(--text3)">Loading quotes…</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- SELL BULK / MY LISTINGS VIEW -->
+      <div class="view" id="view-sell">
+        <div class="section-header">
+          <div>
+            <div class="section-title">🏭 Sell Wholesale / Bulk Products</div>
+            <div class="section-sub">Submit products for global buyers — Admin reviews & approves listings</div>
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:18px;margin-bottom:24px">
+          <div style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:20px">
+            <h3 style="font-size:15px;font-weight:700;margin-bottom:14px">Submit New Product Listing</h3>
+            <div class="form-group"><label class="form-label">Product Name *</label><input class="form-input" id="sellName" placeholder="e.g. Cotton T-Shirts Bulk Lot (100% Combed)"/></div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+              <div class="form-group"><label class="form-label">Category</label><select class="form-input" id="sellCategory"></select></div>
+              <div class="form-group"><label class="form-label">Origin Country</label><input class="form-input" id="sellCountry" value="India" placeholder="India, China, USA…"/></div>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+              <div class="form-group"><label class="form-label">Retail Price (USD) *</label><input class="form-input" id="sellPrice" type="number" step="0.01" placeholder="12.00"/></div>
+              <div class="form-group"><label class="form-label">Wholesale Bulk Price (USD)</label><input class="form-input" id="sellWholesalePrice" type="number" step="0.01" placeholder="8.50"/></div>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px">
+              <div class="form-group"><label class="form-label">MOQ</label><input class="form-input" id="sellMoq" type="number" value="10" min="1"/></div>
+              <div class="form-group"><label class="form-label">Bulk Tier Qty</label><input class="form-input" id="sellBulkMin" type="number" value="50" min="1"/></div>
+              <div class="form-group"><label class="form-label">Unit</label><select class="form-input" id="sellUnit"><option>pcs</option><option>boxes</option><option>kg</option><option>cartons</option><option>sets</option></select></div>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+              <div class="form-group"><label class="form-label">Available Stock</label><input class="form-input" id="sellStock" type="number" value="500" min="1"/></div>
+              <div class="form-group"><label class="form-label">Price Negotiable?</label><select class="form-input" id="sellNegotiable"><option value="true">Yes (Open to Offers)</option><option value="false">Fixed Price</option></select></div>
+            </div>
+            <div class="form-group"><label class="form-label">Quality Specs & Description</label><textarea class="review-textarea" id="sellDesc" rows="2" placeholder="Fabric GSM, packaging, certifications, shipping terms…"></textarea></div>
+            <button class="form-submit" id="sellSubmitBtn" onclick="submitSellerProduct()">Submit for Admin Approval →</button>
+          </div>
+          <div style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:20px">
+            <h3 style="font-size:15px;font-weight:700;margin-bottom:14px">My Submitted Listings</h3>
+            <div id="myListingsContainer" style="display:flex;flex-direction:column;gap:10px">
+              <div style="color:var(--text3);font-size:13px">Loading your listings…</div>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -604,35 +735,42 @@ tbody tr:hover { background:var(--glass); }
         </div>
       </div>
 
-      <!-- CHAT VIEW -->
+      <!-- DIRECT CHAT VIEW (1-on-1 Private Seller/Buyer DM + Admin Support) -->
       <div class="view" id="view-chat">
         <div class="section-header">
           <div>
-            <div class="section-title">💬 Chat with Admin</div>
-            <div class="section-sub">Ask about products, orders, or leave feedback</div>
+            <div class="section-title">💬 Private Direct Messages</div>
+            <div class="section-sub">Chat 1-on-1 directly with a product seller (availability, quality, price negotiation) or Admin Support</div>
           </div>
         </div>
-        <div class="chat-container">
-          <div class="chat-header">
-            <div class="chat-avatar">🤝</div>
-            <div class="chat-info">
-              <strong>Sales Analytics Support</strong><br/>
-              <span>● Online</span>
+        <div class="dm-shell" id="dmShell">
+          <div class="dm-list" id="dmConvoList">
+            <div class="dm-list-head">Your Private Conversations</div>
+            <div style="padding:16px;font-size:13px;color:var(--text3)">Loading conversations…</div>
+          </div>
+          <div class="chat-container" style="height:100%">
+            <div class="chat-header">
+              <button class="dm-back-btn" onclick="document.getElementById('dmShell').classList.remove('thread-open')">← Back</button>
+              <div class="chat-avatar">🤝</div>
+              <div class="chat-info">
+                <strong id="dmPeerTitle">Admin & Platform Support</strong><br/>
+                <span id="dmPeerSub" style="font-size:11.5px;color:var(--success)">● Private 1-on-1 Thread</span>
+              </div>
             </div>
-          </div>
-          <div class="chat-messages" id="chatMessages">
-            <div class="chat-empty">📭 No messages yet. Send a message to start the conversation!</div>
-          </div>
-          <div id="chatProductTag" style="display:none;padding:6px 12px;background:rgba(0,122,255,0.1);font-size:12px;border-top:1px solid var(--border)">
-            📦 Product: <strong id="chatProductName">—</strong>
-            <button onclick="clearProductTag()" style="margin-left:8px;background:none;border:none;color:var(--danger);cursor:pointer;font-size:14px">✕</button>
-          </div>
-          <div class="chat-input-bar">
-            <select id="chatProductSelect" class="chat-product-attach" onchange="attachProduct(this.value,this.options[this.selectedIndex].text)">
-              <option value="">📦 Attach Product</option>
-            </select>
-            <input class="chat-input" id="chatInput" type="text" placeholder="Type a message…" onkeydown="if(event.key==='Enter')sendChatMsg()"/>
-            <button class="chat-send-btn" onclick="sendChatMsg()">➤</button>
+            <div class="chat-messages" id="chatMessages">
+              <div class="chat-empty">📭 Select a conversation or click "Chat Seller" on any product!</div>
+            </div>
+            <div id="chatProductTag" style="display:none;padding:6px 12px;background:rgba(0,122,255,0.1);font-size:12px;border-top:1px solid var(--border)">
+              📦 Product: <strong id="chatProductName">—</strong>
+              <button onclick="clearProductTag()" style="margin-left:8px;background:none;border:none;color:var(--danger);cursor:pointer;font-size:14px">✕</button>
+            </div>
+            <div class="chat-input-bar">
+              <select id="chatProductSelect" class="chat-product-attach" onchange="attachProduct(this.value,this.options[this.selectedIndex].text)">
+                <option value="">📦 Attach Product</option>
+              </select>
+              <input class="chat-input" id="chatInput" type="text" placeholder="Ask about availability, bulk qty, quality, or negotiable price…" onkeydown="if(event.key==='Enter')sendChatMsg()"/>
+              <button class="chat-send-btn" onclick="sendChatMsg()">➤</button>
+            </div>
           </div>
         </div>
       </div>
@@ -683,35 +821,63 @@ tbody tr:hover { background:var(--glass); }
       <button class="modal-close" onclick="closeModal('productModal')">✕</button>
     </div>
     <div class="modal-body">
-      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:16px">
+      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:12px">
         <div>
-          <div style="font-size:28px;font-weight:800;color:var(--accent)" id="modalPrice">—</div>
-          <div style="font-size:13px;color:var(--text3)" id="modalStock">—</div>
+          <div style="font-size:26px;font-weight:800;color:var(--accent)" id="modalPrice">—</div>
+          <div style="font-size:13px;color:var(--success);font-weight:700" id="modalWholesaleLine">—</div>
+          <div style="font-size:12.5px;color:var(--text3)" id="modalStock">—</div>
         </div>
         <div class="product-rating" style="font-size:14px">
           <span class="stars" id="modalStars">★★★★★</span>
           <span id="modalRatingText">0.0 (0 reviews)</span>
         </div>
       </div>
-      <p style="font-size:14px;color:var(--text2);line-height:1.6;margin-bottom:18px" id="modalDesc">—</p>
+      <div class="badge-row" id="modalBadges"></div>
+      <p style="font-size:14px;color:var(--text2);line-height:1.6;margin-bottom:14px" id="modalDesc">—</p>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px">
+        <button class="btn-sm btn-outline" id="modalChatSellerBtn" onclick="chatWithOpenSeller()">💬 Chat Seller Directly</button>
+        <button class="btn-sm btn-primary" id="modalOpenRfqBtn" onclick="openRfqForProduct()">🤝 Negotiate Bulk Price (RFQ)</button>
+      </div>
       <!-- Order Form -->
       <div style="background:var(--bg3);border-radius:var(--radius-sm);padding:16px;margin-bottom:18px">
-        <h4 style="font-size:14px;font-weight:700;margin-bottom:12px">🛒 Place Order</h4>
-        <div class="form-group">
-          <label class="form-label">Quantity</label>
-          <input class="form-input" id="orderQty" type="number" value="1" min="1"/>
+        <h4 style="font-size:14px;font-weight:700;margin-bottom:12px">🛒 Place Retail or Wholesale Order</h4>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+          <div class="form-group">
+            <label class="form-label">Quantity <span id="modalMoqHint" style="color:var(--text3)"></span></label>
+            <input class="form-input" id="orderQty" type="number" value="1" min="1" oninput="updateOrderPreview()"/>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Destination Country</label>
+            <select class="form-input" id="orderCountry">
+              <option value="India">🇮🇳 India</option>
+              <option value="USA">🇺🇸 United States (USA)</option>
+              <option value="UAE">🇦🇪 UAE (Dubai / Abu Dhabi)</option>
+              <option value="UK">🇬🇧 United Kingdom</option>
+              <option value="Saudi Arabia">🇸🇦 Saudi Arabia</option>
+              <option value="China">🇨🇳 China</option>
+              <option value="Germany">🇩🇪 Germany</option>
+              <option value="Singapore">🇸🇬 Singapore</option>
+              <option value="Canada">🇨🇦 Canada</option>
+              <option value="Australia">🇦🇺 Australia</option>
+              <option value="Japan">🇯🇵 Japan</option>
+              <option value="Nigeria">🇳🇬 Nigeria</option>
+              <option value="Brazil">🇧🇷 Brazil</option>
+              <option value="Other">🌍 Other Country (specify in address)</option>
+            </select>
+          </div>
         </div>
+        <div id="orderPricePreview" style="font-size:13px;font-weight:700;color:var(--accent);margin-bottom:10px"></div>
         <div class="form-group">
           <label class="form-label">Payment Method</label>
           <select class="form-input" id="orderPayment">
-            <option value="COD">Cash on Delivery</option>
+            <option value="COD">Cash on Delivery / Trade Invoice</option>
             <option value="RAZORPAY">Razorpay (Card/UPI/Net Banking)</option>
             <option value="RAZORPAY_QR">Razorpay Scan & Pay (QR)</option>
           </select>
         </div>
         <div class="form-group">
-          <label class="form-label">Shipping Address</label>
-          <textarea class="review-textarea" id="orderAddress" rows="2" placeholder="Delivery address…"></textarea>
+          <label class="form-label">Global Shipping Address</label>
+          <textarea class="review-textarea" id="orderAddress" rows="2" placeholder="Street, City, Postal Code, Country…"></textarea>
         </div>
         <button class="form-submit" id="placeOrderBtn" onclick="placeOrder()">Place Order →</button>
       </div>
@@ -736,6 +902,53 @@ tbody tr:hover { background:var(--glass); }
   </div>
 </div>
 
+<!-- ══ RFQ / BULK QUOTE NEGOTIATION MODAL ═══════════════════ -->
+<div class="modal-overlay" id="rfqModal">
+  <div class="modal" style="max-width:500px">
+    <div class="modal-header">
+      <span class="modal-title">🤝 Request Bulk Quote / Negotiate</span>
+      <button class="modal-close" onclick="closeModal('rfqModal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <p style="font-size:13px;color:var(--text2);margin-bottom:12px">
+        Negotiate directly with <strong id="rfqSellerLabel">Seller</strong> for <strong id="rfqProductLabel">Product</strong>.
+      </p>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+        <div class="form-group">
+          <label class="form-label">Bulk Quantity</label>
+          <input class="form-input" id="rfqQty" type="number" value="50" min="1"/>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Your Offer Price / Unit (USD)</label>
+          <input class="form-input" id="rfqOfferPrice" type="number" step="0.01"/>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Destination Country</label>
+        <input class="form-input" id="rfqCountry" value="India" placeholder="e.g. UAE, USA, India, UK…"/>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Quality / Packaging / Delivery Requirements</label>
+        <textarea class="review-textarea" id="rfqNotes" rows="3" placeholder="Ask about fabric quality, sample check, custom branding, or shipping timeline…"></textarea>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Delivery Address</label>
+        <input class="form-input" id="rfqAddress" placeholder="Shop / Warehouse address"/>
+      </div>
+      <button class="form-submit" id="rfqSubmitBtn" onclick="submitRfqQuote()">Send Quote Request →</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ MOBILE BOTTOM NAV BAR ════════════════════════════════ -->
+<nav class="mobile-bottom-nav" id="mobileBottomNav">
+  <button class="mbn-item active" data-view="shop" onclick="navTo('shop')"><span class="ico">🛍️</span>Shop</button>
+  <button class="mbn-item" data-view="rfq" onclick="navTo('rfq')"><span class="ico">🤝</span>Quotes</button>
+  <button class="mbn-item" data-view="sell" onclick="navTo('sell')"><span class="ico">🏭</span>Sell</button>
+  <button class="mbn-item" data-view="chat" onclick="navTo('chat')"><span class="ico">💬</span>Chat</button>
+  <button class="mbn-item" data-view="orders" onclick="navTo('orders')"><span class="ico">📦</span>Orders</button>
+</nav>
+
 <!-- ══ TOAST CONTAINER ══════════════════════════════════════ -->
 <div class="toast-container" id="toastContainer"></div>
 
@@ -756,6 +969,10 @@ let openProductId = null;
 let attachedProductId = null;
 let attachedProductName = null;
 let chatPollTimer = null;
+let activePeerEmail = 'ADMIN_SUPPORT';
+let activePeerName = 'Admin & Platform Support';
+let currentRfqTab = 'sent';
+let rfqCache = { sentQuotes: [], receivedQuotes: [] };
 
 // ── AUTH HELPERS ───────────────────────────────────────────
 function getToken() { return localStorage.getItem('user_token'); }
@@ -975,12 +1192,14 @@ function navTo(view) {
   document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
   const el = document.getElementById('view-' + view);
   if (el) el.classList.add('active');
-  document.querySelectorAll('.sidebar-item').forEach(s => {
+  document.querySelectorAll('.sidebar-item, .mbn-item').forEach(s => {
     s.classList.toggle('active', s.dataset.view === view);
   });
   if (view === 'orders') loadOrders();
   if (view === 'dashboard') loadDashboard();
-  if (view === 'chat') loadChatThread();
+  if (view === 'chat') loadConversations();
+  if (view === 'rfq') loadRfqQuotes();
+  if (view === 'sell') { loadSellCategories(); loadMyListings(); }
   // Close mobile sidebar
   document.getElementById('sidebar').classList.remove('mobile-open');
 }
@@ -1001,7 +1220,14 @@ async function loadProducts() {
     const cats = [...new Set(allProducts.map(p => p.categoryName).filter(Boolean))];
     const sel = document.getElementById('categoryFilter');
     sel.innerHTML = '<option value="">All Categories</option>' +
-      cats.map(c => `<option value="${c}">${c}</option>`).join('');
+      cats.map(c => `<option value="${esc(c)}">${esc(c)}</option>`).join('');
+    // Populate origin country filter
+    const countries = [...new Set(allProducts.map(p => p.originCountry).filter(Boolean))];
+    const cSel = document.getElementById('countryFilter');
+    if (cSel) {
+      cSel.innerHTML = '<option value="">All Countries</option>' +
+        countries.map(c => `<option value="${esc(c)}">🌍 ${esc(c)}</option>`).join('');
+    }
     // Populate chat product select
     const chatSel = document.getElementById('chatProductSelect');
     chatSel.innerHTML = '<option value="">📦 Attach Product</option>' +
@@ -1017,10 +1243,12 @@ async function loadProducts() {
 function filterProducts() {
   const q = document.getElementById('productSearch').value.toLowerCase();
   const cat = document.getElementById('categoryFilter').value;
+  const country = document.getElementById('countryFilter')?.value || '';
   const sort = document.getElementById('sortFilter').value;
   let filtered = allProducts.filter(p =>
-    (!q || p.name.toLowerCase().includes(q) || (p.description||'').toLowerCase().includes(q)) &&
-    (!cat || p.categoryName === cat)
+    (!q || p.name.toLowerCase().includes(q) || (p.description||'').toLowerCase().includes(q) || (p.sellerName||'').toLowerCase().includes(q) || (p.originCountry||'').toLowerCase().includes(q)) &&
+    (!cat || p.categoryName === cat) &&
+    (!country || p.originCountry === country)
   );
   if (sort === 'price-asc') filtered.sort((a,b) => a.price - b.price);
   else if (sort === 'price-desc') filtered.sort((a,b) => b.price - a.price);
@@ -1047,42 +1275,84 @@ function renderProducts(products) {
     grid.innerHTML = '<div class="empty-state" style="grid-column:1/-1"><div class="icon">🔍</div><h3>No products found</h3></div>';
     return;
   }
-  grid.innerHTML = products.map(p => `
+  grid.innerHTML = products.map(p => {
+    const bulkPrice = p.wholesalePrice || (p.price * 0.85);
+    const moq = p.moq || 1;
+    const bulkMin = p.bulkMinQty || 10;
+    const unit = p.unitType || 'pcs';
+    const sellerLabel = p.sellerName || 'Platform Direct';
+    const sellerEmail = p.sellerEmail || 'ADMIN_SUPPORT';
+    return `
     <div class="product-card" onclick="openProduct(${p.id})">
       <span class="product-badge ${p.inStock ? 'badge-instock':'badge-outstock'}">${p.inStock ? '✓ In Stock':'Out of Stock'}</span>
       <div class="product-icon">${categoryIcon(p.categoryName)}</div>
+      <div class="badge-row">
+        <span class="mini-badge badge-country">🌍 ${esc(p.originCountry || 'India')}</span>
+        ${moq > 1 ? `<span class="mini-badge badge-wholesale">MOQ ${moq} ${esc(unit)}</span>` : ''}
+        ${p.negotiable !== false ? '<span class="mini-badge badge-neg">🤝 Negotiable</span>' : ''}
+      </div>
       <div class="product-name">${esc(p.name)}</div>
-      <div class="product-cat">${esc(p.categoryName)}</div>
-      <div class="product-price">₹${Number(p.price * 83.5).toLocaleString('en-IN',{maximumFractionDigits:0})}</div>
+      <div class="product-cat">${esc(p.categoryName)} · By ${esc(sellerLabel)}</div>
+      <div class="product-price">₹${Number(p.price * 83.5).toLocaleString('en-IN',{maximumFractionDigits:0})} <span style="font-size:11px;color:var(--text3);font-weight:500">/ ${esc(unit)}</span></div>
+      <div class="wholesale-price-line">Bulk (${bulkMin}+): ₹${Number(bulkPrice * 83.5).toLocaleString('en-IN',{maximumFractionDigits:0})} ($${Number(bulkPrice).toFixed(2)})</div>
       <div class="product-rating">
         <span class="stars">${starsHtml(p.avgRating)}</span>
         <span>${p.avgRating} (${p.reviewCount})</span>
       </div>
-      <div class="product-actions">
-        <button class="btn-sm btn-primary" onclick="event.stopPropagation();openProduct(${p.id})">Buy Now</button>
-        <button class="btn-sm btn-outline" onclick="event.stopPropagation();attachProductChat(${p.id},'${esc(p.name)}');navTo('chat')">Ask Admin</button>
+      <div class="product-actions" style="flex-wrap:wrap">
+        <button class="btn-sm btn-primary" onclick="event.stopPropagation();openProduct(${p.id})">Order / Bulk</button>
+        <button class="btn-sm btn-outline" onclick="event.stopPropagation();chatDirectWithSeller('${esc(sellerEmail)}','${esc(sellerLabel)}',${p.id},'${esc(p.name)}')">💬 Chat Seller</button>
+        <button class="btn-sm btn-outline" onclick="event.stopPropagation();openRfqModal(${p.id})">🤝 Quote</button>
       </div>
     </div>
-  `).join('');
+  `}).join('');
 }
 
 async function openProduct(id) {
   openProductId = id;
   const p = allProducts.find(x => x.id === id);
   if (!p) return;
+  const bulkPrice = p.wholesalePrice || (p.price * 0.85);
+  const moq = p.moq || 1;
+  const bulkMin = p.bulkMinQty || 10;
+  const unit = p.unitType || 'pcs';
   document.getElementById('modalProductName').textContent = p.name;
-  document.getElementById('modalPrice').textContent = '₹' + Number(p.price * 83.5).toLocaleString('en-IN',{maximumFractionDigits:0}) + ' ($' + Number(p.price).toFixed(2) + ')';
-  document.getElementById('modalStock').textContent = p.inStock ? `✅ ${p.stockQuantity} units in stock` : '❌ Out of Stock';
+  document.getElementById('modalPrice').textContent = '₹' + Number(p.price * 83.5).toLocaleString('en-IN',{maximumFractionDigits:0}) + ' ($' + Number(p.price).toFixed(2) + ' / ' + unit + ')';
+  document.getElementById('modalWholesaleLine').textContent = `Wholesale (${bulkMin}+ ${unit}): ₹${Number(bulkPrice * 83.5).toLocaleString('en-IN',{maximumFractionDigits:0})} ($${Number(bulkPrice).toFixed(2)}) · MOQ: ${moq} ${unit}`;
+  document.getElementById('modalStock').textContent = p.inStock ? `✅ ${p.stockQuantity} ${unit} in stock · Seller: ${p.sellerName || 'Platform Direct'}` : '❌ Out of Stock';
   document.getElementById('modalDesc').textContent = p.description || 'No description available.';
   document.getElementById('modalStars').textContent = starsHtml(p.avgRating);
   document.getElementById('modalRatingText').textContent = `${p.avgRating} (${p.reviewCount} reviews)`;
+  document.getElementById('modalBadges').innerHTML = `
+    <span class="mini-badge badge-country">🌍 Ships from ${esc(p.originCountry || 'India')}</span>
+    <span class="mini-badge badge-wholesale">📦 MOQ: ${moq} ${esc(unit)}</span>
+    ${p.negotiable !== false ? '<span class="mini-badge badge-neg">🤝 Negotiable Price</span>' : ''}
+  `;
+  const qtyEl = document.getElementById('orderQty');
+  qtyEl.min = moq;
+  qtyEl.value = moq;
+  document.getElementById('modalMoqHint').textContent = `(Min: ${moq} ${unit})`;
   document.getElementById('placeOrderBtn').disabled = !p.inStock;
+  updateOrderPreview();
   // Prefill shipping address
   const addr = document.getElementById('editAddress').value;
   if (addr) document.getElementById('orderAddress').value = addr;
   openModal('productModal');
   // Load reviews
   loadReviews(id);
+}
+
+function updateOrderPreview() {
+  const p = allProducts.find(x => x.id === openProductId);
+  const el = document.getElementById('orderPricePreview');
+  if (!p || !el) return;
+  const qty = Math.max(1, Number(document.getElementById('orderQty').value) || 1);
+  const bulkMin = p.bulkMinQty || 10;
+  const bulkPrice = p.wholesalePrice || (p.price * 0.85);
+  const isBulk = qty >= bulkMin;
+  const unitUsd = isBulk ? bulkPrice : p.price;
+  const totalUsd = unitUsd * qty;
+  el.innerHTML = `${isBulk ? '🏭 Wholesale Bulk Rate Applied!' : '🛍️ Retail Rate'} — Total: ₹${Number(totalUsd * 83.5).toLocaleString('en-IN',{maximumFractionDigits:0})} ($${totalUsd.toFixed(2)})`;
 }
 
 async function loadReviews(productId) {
@@ -1145,6 +1415,7 @@ async function submitReview() {
 async function placeOrder() {
   const qty = Number(document.getElementById('orderQty').value);
   const payment = document.getElementById('orderPayment').value;
+  const country = document.getElementById('orderCountry')?.value || 'India';
   const address = document.getElementById('orderAddress').value.trim();
   const btn = document.getElementById('placeOrderBtn');
   if (!qty || qty < 1) { showToast('Invalid quantity', 'error'); return; }
@@ -1152,7 +1423,7 @@ async function placeOrder() {
   try {
     const r = await apiFetch('/user/orders', {
       method: 'POST',
-      body: JSON.stringify({ productId: openProductId, quantity: qty, paymentMethod: payment, shippingAddress: address })
+      body: JSON.stringify({ productId: openProductId, quantity: qty, paymentMethod: payment, buyerCountry: country, shippingAddress: address })
     });
     const orderRef = r.data.orderRef;
     const totalUsd = Number(r.data.totalAmount || 0);
@@ -1276,9 +1547,22 @@ async function loadDashboard() {
   } catch(e) { showToast('Failed to load dashboard', 'error'); }
 }
 
-// ── CHAT ───────────────────────────────────────────────────
-function loadChatProducts() {
-  // Already done in loadProducts
+// ── DIRECT 1-ON-1 CHAT (BUYER <-> SELLER OR ADMIN) ─────────
+function loadChatProducts() {}
+
+function chatWithOpenSeller() {
+  const p = allProducts.find(x => x.id === openProductId);
+  if (!p) return;
+  closeModal('productModal');
+  chatDirectWithSeller(p.sellerEmail || 'ADMIN_SUPPORT', p.sellerName || 'Platform Direct', p.id, p.name);
+}
+
+function chatDirectWithSeller(sellerEmail, sellerName, productId, productName) {
+  activePeerEmail = sellerEmail || 'ADMIN_SUPPORT';
+  activePeerName = sellerName || 'Platform Support';
+  if (productId) attachProductChat(productId, productName);
+  navTo('chat');
+  openDmThread(activePeerEmail, activePeerName);
 }
 
 function attachProductChat(id, name) {
@@ -1297,18 +1581,62 @@ function clearProductTag() {
   document.getElementById('chatProductSelect').value = '';
 }
 
+async function loadConversations() {
+  const listEl = document.getElementById('dmConvoList');
+  try {
+    const r = await apiFetch('/chat/conversations');
+    const convos = r.data || [];
+    // Ensure activePeerEmail is in list even if new conversation
+    if (activePeerEmail && !convos.some(c => c.peerEmail.toLowerCase() === activePeerEmail.toLowerCase())) {
+      convos.unshift({
+        peerEmail: activePeerEmail, peerName: activePeerName,
+        isAdminSupport: activePeerEmail === 'ADMIN_SUPPORT',
+        latestMessage: 'New private chat — ask about bulk qty, quality, or price',
+        unreadCount: 0
+      });
+    }
+    listEl.innerHTML = '<div class="dm-list-head">Your Private Conversations</div>' +
+      convos.map(c => `
+        <button class="dm-item ${c.peerEmail.toLowerCase() === activePeerEmail.toLowerCase() ? 'active':''}"
+                onclick="openDmThread('${esc(c.peerEmail)}','${esc(c.peerName)}')">
+          <div class="dm-item-top">
+            <span>${c.isAdminSupport ? '🛡️ ' : '👤 '}${esc(c.peerName)}</span>
+            ${c.unreadCount > 0 ? `<span class="dm-unread">${c.unreadCount}</span>` : ''}
+          </div>
+          <div class="dm-item-sub">${esc(c.latestMessage || 'No messages yet')}</div>
+        </button>
+      `).join('');
+    loadChatThread();
+  } catch(e) {
+    listEl.innerHTML = '<div class="dm-list-head">Conversations</div><div style="padding:14px;color:var(--text3)">Could not load conversations.</div>';
+  }
+}
+
+function openDmThread(peerEmail, peerName) {
+  activePeerEmail = peerEmail || 'ADMIN_SUPPORT';
+  activePeerName = peerName || 'Platform Support';
+  document.getElementById('dmPeerTitle').textContent = activePeerName;
+  document.getElementById('dmPeerSub').textContent = activePeerEmail === 'ADMIN_SUPPORT'
+    ? '● Platform Admin Support'
+    : `● Private 1-on-1 DM (${activePeerEmail})`;
+  document.getElementById('dmShell')?.classList.add('thread-open');
+  document.querySelectorAll('.dm-item').forEach(el => {
+    el.classList.toggle('active', el.textContent.includes(activePeerName));
+  });
+  loadChatThread();
+}
+
 async function loadChatThread() {
   const container = document.getElementById('chatMessages');
   try {
-    const r = await apiFetch('/chat/thread');
+    const r = await apiFetch('/chat/dm?peerEmail=' + encodeURIComponent(activePeerEmail || 'ADMIN_SUPPORT'));
     const msgs = r.data || [];
     if (!msgs.length) {
-      container.innerHTML = '<div class="chat-empty">📭 No messages yet. Send a message to start the conversation!</div>';
+      container.innerHTML = `<div class="chat-empty">📭 Start a private 1-on-1 chat with <strong>${esc(activePeerName)}</strong>.<br/>Ask about bulk stock, quality, or negotiable price!</div>`;
       return;
     }
     renderChatMessages(msgs);
-    // Mark as read
-    await apiFetch('/chat/mark-read', { method: 'POST' });
+    await apiFetch('/chat/mark-read?peerEmail=' + encodeURIComponent(activePeerEmail || 'ADMIN_SUPPORT'), { method: 'POST' });
     updateChatBadge(0);
   } catch(e) { container.innerHTML = '<div class="chat-empty">Failed to load chat.</div>'; }
 }
@@ -1316,8 +1644,8 @@ async function loadChatThread() {
 function renderChatMessages(msgs) {
   const container = document.getElementById('chatMessages');
   container.innerHTML = msgs.map(m => {
-    const isSent = m.senderEmail === currentUser?.username;
-    const time = new Date(m.createdAt).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});
+    const isSent = m.senderEmail?.toLowerCase() === currentUser?.username?.toLowerCase();
+    const time = m.createdAt ? new Date(m.createdAt).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}) : '';
     const productTag = m.productId ? `<span class="product-tag">📦 ${esc(m.productName)}</span><br/>` : '';
     return `
       <div class="chat-msg ${isSent ? 'sent' : 'received'}">
@@ -1340,14 +1668,210 @@ async function sendChatMsg() {
       method: 'POST',
       body: JSON.stringify({
         message: msg,
+        recipientEmail: activePeerEmail === 'ADMIN_SUPPORT' ? '' : activePeerEmail,
         messageType: attachedProductId ? 'PRODUCT_INQUIRY' : 'TEXT',
         productId: attachedProductId,
         productName: attachedProductName || ''
       })
     });
     clearProductTag();
-    loadChatThread();
+    loadConversations();
   } catch(e) { showToast(e.message, 'error'); input.value = msg; }
+}
+
+// ── BULK RFQ / NEGOTIATIONS ────────────────────────────────
+function openRfqForProduct() {
+  closeModal('productModal');
+  openRfqModal(openProductId);
+}
+
+function openRfqModal(productId) {
+  const p = allProducts.find(x => x.id === productId);
+  if (!p) return;
+  openProductId = productId;
+  document.getElementById('rfqProductLabel').textContent = p.name;
+  document.getElementById('rfqSellerLabel').textContent = p.sellerName || 'Platform Direct';
+  document.getElementById('rfqQty').value = Math.max(p.bulkMinQty || 10, p.moq || 1);
+  document.getElementById('rfqOfferPrice').value = Number(p.wholesalePrice || (p.price * 0.8)).toFixed(2);
+  const addr = document.getElementById('editAddress')?.value || '';
+  if (addr) document.getElementById('rfqAddress').value = addr;
+  openModal('rfqModal');
+}
+
+async function submitRfqQuote() {
+  const btn = document.getElementById('rfqSubmitBtn');
+  const qty = Number(document.getElementById('rfqQty').value);
+  const offer = Number(document.getElementById('rfqOfferPrice').value);
+  const country = document.getElementById('rfqCountry').value.trim() || 'India';
+  const notes = document.getElementById('rfqNotes').value.trim();
+  const address = document.getElementById('rfqAddress').value.trim();
+  if (!qty || qty < 1 || !offer || offer <= 0) { showToast('Enter valid bulk quantity and offer price', 'error'); return; }
+  btn.disabled = true; btn.textContent = 'Sending Quote…';
+  try {
+    const r = await apiFetch('/wholesale/quotes', {
+      method: 'POST',
+      body: JSON.stringify({ productId: openProductId, requestedQty: qty, proposedUnitPrice: offer, buyerCountry: country, qualityNotes: notes, deliveryAddress: address })
+    });
+    showToast(r.message || 'Quote request sent! 🤝', 'success');
+    closeModal('rfqModal');
+    navTo('rfq');
+  } catch(e) { showToast(e.message, 'error'); }
+  finally { btn.disabled = false; btn.textContent = 'Send Quote Request →'; }
+}
+
+function switchRfqTab(tab) {
+  currentRfqTab = tab;
+  document.getElementById('rfqTabSent').classList.toggle('active', tab === 'sent');
+  document.getElementById('rfqTabReceived').classList.toggle('active', tab === 'received');
+  renderRfqTable();
+}
+
+async function loadRfqQuotes() {
+  try {
+    const r = await apiFetch('/wholesale/quotes/my');
+    rfqCache = r.data || { sentQuotes: [], receivedQuotes: [] };
+    renderRfqTable();
+  } catch(e) {
+    document.getElementById('rfqTableBody').innerHTML = '<tr><td colspan="9" style="text-align:center;color:var(--text3);padding:20px">Could not load quotes.</td></tr>';
+  }
+}
+
+function renderRfqTable() {
+  const tbody = document.getElementById('rfqTableBody');
+  const list = currentRfqTab === 'sent' ? (rfqCache.sentQuotes || []) : (rfqCache.receivedQuotes || []);
+  if (!list.length) {
+    tbody.innerHTML = `<tr><td colspan="9"><div class="empty-state"><div class="icon">🤝</div><h3>No ${currentRfqTab === 'sent' ? 'sent' : 'received'} quotes yet</h3><p>Use "Quote" on any product to negotiate bulk pricing.</p></div></td></tr>`;
+    return;
+  }
+  tbody.innerHTML = list.map(q => {
+    const counterOrAgreed = q.agreedUnitPrice ? `$${Number(q.agreedUnitPrice).toFixed(2)} (Agreed)` : (q.counterUnitPrice ? `$${Number(q.counterUnitPrice).toFixed(2)} (Counter)` : '—');
+    let actions = '';
+    if (currentRfqTab === 'sent') {
+      if (q.status === 'COUNTERED') actions += `<button class="btn-sm btn-primary" onclick="acceptCounterRfq(${q.id})">Accept $${Number(q.counterUnitPrice).toFixed(2)}</button> `;
+      if (q.status === 'ACCEPTED') actions += `<button class="btn-sm btn-primary" onclick="convertRfqToOrder(${q.id})">Place Bulk Order →</button>`;
+      actions += ` <button class="btn-sm btn-outline" onclick="chatDirectWithSeller('${esc(q.sellerEmail)}','${esc(q.sellerName)}',${q.productId},'${esc(q.productName)}')">💬</button>`;
+    } else {
+      if (q.status === 'PENDING') {
+        actions += `<button class="btn-sm btn-primary" onclick="respondRfq(${q.id},'ACCEPT')">Accept</button> `;
+        actions += `<button class="btn-sm btn-outline" onclick="promptCounterRfq(${q.id})">Counter</button> `;
+        actions += `<button class="btn-sm btn-outline" style="color:var(--danger)" onclick="respondRfq(${q.id},'REJECT')">Reject</button>`;
+      }
+    }
+    return `<tr>
+      <td><code>${esc(q.quoteRef)}</code></td>
+      <td><strong>${esc(q.productName)}</strong><br/><span style="font-size:11px;color:var(--text3)">${currentRfqTab === 'sent' ? 'Seller: ' + esc(q.sellerName) : 'Buyer: ' + esc(q.buyerName)}</span></td>
+      <td>${q.requestedQty} ${esc(q.unitType || 'pcs')}</td>
+      <td>$${Number(q.originalUnitPrice).toFixed(2)}</td>
+      <td style="font-weight:700">$${Number(q.proposedUnitPrice).toFixed(2)}</td>
+      <td>${counterOrAgreed}</td>
+      <td>🌍 ${esc(q.buyerCountry)}</td>
+      <td><span class="status-pill status-${q.status.toLowerCase()}">${q.status}</span></td>
+      <td style="white-space:nowrap">${actions || '—'}</td>
+    </tr>`;
+  }).join('');
+}
+
+async function respondRfq(id, action, counterPrice) {
+  try {
+    await apiFetch(`/wholesale/quotes/${id}/respond`, {
+      method: 'PUT',
+      body: JSON.stringify({ action, counterUnitPrice: counterPrice || null })
+    });
+    showToast(`Quote ${action}ED ✅`, 'success');
+    loadRfqQuotes();
+  } catch(e) { showToast(e.message, 'error'); }
+}
+
+function promptCounterRfq(id) {
+  const val = prompt('Enter your counter-offer unit price (USD):');
+  if (!val || isNaN(Number(val)) || Number(val) <= 0) return;
+  respondRfq(id, 'COUNTER', Number(val));
+}
+
+async function acceptCounterRfq(id) {
+  try {
+    await apiFetch(`/wholesale/quotes/${id}/accept-counter`, { method: 'PUT' });
+    showToast('Counter-offer accepted! You can now place the bulk order. ✅', 'success');
+    loadRfqQuotes();
+  } catch(e) { showToast(e.message, 'error'); }
+}
+
+async function convertRfqToOrder(id) {
+  try {
+    const r = await apiFetch(`/wholesale/quotes/${id}/convert-order`, {
+      method: 'POST',
+      body: JSON.stringify({ paymentMethod: 'COD' })
+    });
+    showToast('Bulk Order Placed! Ref: ' + r.data.orderRef + ' 🎉', 'success');
+    loadRfqQuotes();
+    navTo('orders');
+  } catch(e) { showToast(e.message, 'error'); }
+}
+
+// ── SELL BULK / MY LISTINGS ────────────────────────────────
+async function loadSellCategories() {
+  const sel = document.getElementById('sellCategory');
+  if (!sel || sel.options.length > 0) return;
+  try {
+    const r = await apiFetch('/user/categories');
+    const cats = r.data || [];
+    sel.innerHTML = cats.map(c => `<option value="${c.id}">${esc(c.name)}</option>`).join('');
+  } catch(_) {}
+}
+
+async function submitSellerProduct() {
+  const btn = document.getElementById('sellSubmitBtn');
+  const payload = {
+    name: document.getElementById('sellName').value.trim(),
+    categoryId: Number(document.getElementById('sellCategory').value) || null,
+    originCountry: document.getElementById('sellCountry').value.trim() || 'India',
+    price: Number(document.getElementById('sellPrice').value),
+    wholesalePrice: document.getElementById('sellWholesalePrice').value ? Number(document.getElementById('sellWholesalePrice').value) : null,
+    moq: Number(document.getElementById('sellMoq').value) || 1,
+    bulkMinQty: Number(document.getElementById('sellBulkMin').value) || 10,
+    unitType: document.getElementById('sellUnit').value || 'pcs',
+    stockQuantity: Number(document.getElementById('sellStock').value) || 100,
+    negotiable: document.getElementById('sellNegotiable').value === 'true',
+    description: document.getElementById('sellDesc').value.trim()
+  };
+  if (!payload.name || !payload.price || payload.price <= 0) {
+    showToast('Product name and retail price are required', 'error'); return;
+  }
+  btn.disabled = true; btn.textContent = 'Submitting…';
+  try {
+    const r = await apiFetch('/user/products/submit', { method: 'POST', body: JSON.stringify(payload) });
+    showToast(r.message || 'Submitted for Admin approval!', 'success');
+    document.getElementById('sellName').value = '';
+    document.getElementById('sellDesc').value = '';
+    loadMyListings();
+    loadProducts();
+  } catch(e) { showToast(e.message, 'error'); }
+  finally { btn.disabled = false; btn.textContent = 'Submit for Admin Approval →'; }
+}
+
+async function loadMyListings() {
+  const el = document.getElementById('myListingsContainer');
+  if (!el) return;
+  try {
+    const r = await apiFetch('/user/products/my-listings');
+    const list = r.data || [];
+    if (!list.length) {
+      el.innerHTML = '<div style="color:var(--text3);font-size:13px">No listings yet. Submit your first wholesale product!</div>';
+      return;
+    }
+    el.innerHTML = list.map(p => `
+      <div style="background:var(--bg3);border:1px solid var(--border);border-radius:10px;padding:12px">
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:8px">
+          <strong>${esc(p.name)}</strong>
+          <span class="status-pill status-${p.approvalStatus.toLowerCase()}">${p.approvalStatus}</span>
+        </div>
+        <div style="font-size:12px;color:var(--text2);margin-top:4px">
+          Retail: $${Number(p.price).toFixed(2)} · Bulk (${p.bulkMinQty}+): $${Number(p.wholesalePrice).toFixed(2)} · MOQ: ${p.moq} ${esc(p.unitType)} · 🌍 ${esc(p.originCountry)}
+        </div>
+        ${p.rejectionReason ? `<div style="font-size:11.5px;color:var(--danger);margin-top:4px">Reason: ${esc(p.rejectionReason)}</div>` : ''}
+      </div>
+    `).join('');
+  } catch(e) { el.innerHTML = '<div style="color:var(--text3)">Failed to load listings.</div>'; }
 }
 
 function startChatPoll() {

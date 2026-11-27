@@ -56,6 +56,18 @@ public class UserOrder {
     @Column(name = "shipping_address", columnDefinition = "TEXT")
     private String shippingAddress;
 
+    @Column(name = "buyer_country", length = 100)
+    private String buyerCountry = "India";
+
+    @Column(name = "buyer_region", length = 100)
+    private String buyerRegion = "South Asia";
+
+    @Column(name = "order_type", length = 20)
+    private String orderType = "RETAIL"; // RETAIL or WHOLESALE
+
+    @Column(name = "quote_ref", length = 50)
+    private String quoteRef;
+
     @Column(length = 255)
     private String notes;
 
@@ -112,4 +124,13 @@ public class UserOrder {
     public void setLinkedSaleId(Long linkedSaleId) { this.linkedSaleId = linkedSaleId; }
     public LocalDateTime getCreatedAt() { return createdAt; }
     public LocalDateTime getUpdatedAt() { return updatedAt; }
+
+    public String getBuyerCountry() { return buyerCountry != null ? buyerCountry : "India"; }
+    public void setBuyerCountry(String buyerCountry) { this.buyerCountry = buyerCountry; }
+    public String getBuyerRegion() { return buyerRegion != null ? buyerRegion : "South Asia"; }
+    public void setBuyerRegion(String buyerRegion) { this.buyerRegion = buyerRegion; }
+    public String getOrderType() { return orderType != null ? orderType : "RETAIL"; }
+    public void setOrderType(String orderType) { this.orderType = orderType; }
+    public String getQuoteRef() { return quoteRef; }
+    public void setQuoteRef(String quoteRef) { this.quoteRef = quoteRef; }
 }

@@ -83,6 +83,11 @@
         <span class="nav-label">Customer Chat &amp; Store</span>
         <span class="nav-badge" id="adminChatBadge" style="display:none;margin-left:auto;background:#FF3B30;color:#fff;font-size:10px;font-weight:700;padding:1px 6px;border-radius:10px;">0</span>
       </button>
+      <button class="nav-item" data-tab="approvals">
+        <span class="nav-icon"><i data-lucide="check-circle-2"></i></span>
+        <span class="nav-label">Approvals &amp; Wholesale</span>
+        <span class="nav-badge" id="pendingApprovalsBadge" style="display:none;margin-left:auto;background:#FF9500;color:#fff;font-size:10px;font-weight:700;padding:1px 6px;border-radius:10px;">0</span>
+      </button>
       <a class="nav-item" href="user.html" style="text-decoration:none;">
         <span class="nav-icon"><i data-lucide="store"></i></span>
         <span class="nav-label">User Store Portal ↗</span>
@@ -697,6 +702,99 @@
             </div>
             <div class="chart-wrap"><canvas id="analyticsPaymentChart"></canvas></div>
           </div>
+
+          <!-- Regional & Country Sales + Behavior Analytics -->
+          <div class="card chart-card">
+            <div class="card-header">
+              <div class="card-title-group">
+                <div class="card-icon-badge info-badge"><i data-lucide="globe"></i></div>
+                <div><h3 class="card-title">Regional &amp; Country Sales</h3><span class="card-subtitle">Which region &amp; country sells more</span></div>
+              </div>
+            </div>
+            <div class="chart-wrap"><canvas id="analyticsRegionalChart"></canvas></div>
+          </div>
+          <div class="card chart-card">
+            <div class="card-header">
+              <div class="card-title-group">
+                <div class="card-icon-badge"><i data-lucide="activity"></i></div>
+                <div><h3 class="card-title">Wholesale &amp; Buyer Behavior</h3><span class="card-subtitle">Bulk vs Retail &amp; RFQ conversion</span></div>
+              </div>
+            </div>
+            <div id="behaviorInsightsBox" style="padding:16px;display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+              <div style="color:var(--text-muted);font-size:13px;">Loading behavior analytics…</div>
+            </div>
+          </div>
+          <div class="card table-card" style="grid-column: 1 / -1;">
+            <div class="card-header">
+              <div class="card-title-group">
+                <div class="card-icon-badge"><i data-lucide="map-pin"></i></div>
+                <div><h3 class="card-title">Country &amp; Region Performance</h3><span class="card-subtitle">Combined ERP &amp; Global Wholesale Portal sales</span></div>
+              </div>
+            </div>
+            <div class="table-scroll">
+              <table class="data-table">
+                <thead><tr><th>Country</th><th>Region</th><th>Orders</th><th>Units</th><th>Total Revenue</th></tr></thead>
+                <tbody id="regionalSalesTableBody"><tr><td colspan="5" class="empty-cell">Loading regional data…</td></tr></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ═══════════════════════ TAB: APPROVALS & WHOLESALE RFQ ═══════════════════════ -->
+      <section class="tab-panel" id="tab-approvals">
+        <div class="page-header-row">
+          <div>
+            <h2 class="section-title">Product Approvals &amp; Wholesale RFQs</h2>
+            <p class="section-subtitle">Accept or Reject seller bulk listings and monitor B2B price negotiations</p>
+          </div>
+          <button class="btn-primary" id="refreshApprovalsBtn">
+            <i data-lucide="refresh-cw"></i> Refresh
+          </button>
+        </div>
+
+        <div class="card table-card" style="margin-bottom:20px;">
+          <div class="card-header">
+            <div class="card-title-group">
+              <div class="card-icon-badge gold-badge"><i data-lucide="package-check"></i></div>
+              <div>
+                <h3 class="card-title">Pending Seller Product Approvals</h3>
+                <span class="card-subtitle" id="approvalsSummary">Review bulk products submitted by sellers</span>
+              </div>
+            </div>
+          </div>
+          <div class="table-scroll">
+            <table class="data-table">
+              <thead>
+                <tr><th>Product</th><th>Seller</th><th>Origin</th><th>Retail / Bulk</th><th>MOQ &amp; Stock</th><th>Status</th><th>Action</th></tr>
+              </thead>
+              <tbody id="adminApprovalsBody">
+                <tr><td colspan="7" class="empty-cell">Loading pending products…</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="card table-card">
+          <div class="card-header">
+            <div class="card-title-group">
+              <div class="card-icon-badge info-badge"><i data-lucide="handshake"></i></div>
+              <div>
+                <h3 class="card-title">Global Wholesale RFQ Negotiations</h3>
+                <span class="card-subtitle">All bulk quotes &amp; price negotiations across buyers &amp; sellers</span>
+              </div>
+            </div>
+          </div>
+          <div class="table-scroll">
+            <table class="data-table">
+              <thead>
+                <tr><th>RFQ Ref</th><th>Product</th><th>Buyer (Country)</th><th>Seller</th><th>Qty</th><th>Proposed / Agreed</th><th>Status</th></tr>
+              </thead>
+              <tbody id="adminRfqBody">
+                <tr><td colspan="7" class="empty-cell">Loading wholesale RFQs…</td></tr>
+              </tbody>
+            </table>
+          </div>
         </div>
       </section>
 
@@ -723,6 +821,12 @@
             </div>
             <div id="adminChatThreads" class="admin-chat-threads">
               <div class="empty-cell" style="padding:28px;">Sign in as Admin to view customer messages.</div>
+            </div>
+            <div style="padding:10px 16px;border-top:1px solid var(--border);font-size:11.5px;font-weight:700;color:var(--text-muted);text-transform:uppercase;">
+              B2B Buyer ↔ Seller Negotiations
+            </div>
+            <div id="adminB2bThreads" class="admin-chat-threads" style="max-height:220px;overflow-y:auto;">
+              <div class="empty-cell" style="padding:16px;">No B2B chats yet.</div>
             </div>
           </div>
 
@@ -1294,7 +1398,7 @@
   </div>
 </div>
 
-<script src="js/api.js?v=20261127_v15"></script>
-<script src="js/app.js?v=20261127_v15"></script>
+<script src="js/api.js?v=20261127_v16"></script>
+<script src="js/app.js?v=20261127_v16"></script>
 </body>
 </html>

@@ -25,6 +25,7 @@ import java.util.concurrent.atomic.AtomicLong;
 public class UserPortalController {
 
     private final ProductRepository productRepo;
+    private final CategoryRepository categoryRepo;
     private final UserOrderRepository userOrderRepo;
     private final ProductReviewRepository reviewRepo;
     private final AppUserRepository userRepo;
@@ -33,38 +34,178 @@ public class UserPortalController {
     private static final AtomicLong orderCounter = new AtomicLong(System.currentTimeMillis() % 100000);
 
     public UserPortalController(ProductRepository productRepo,
+                                CategoryRepository categoryRepo,
                                 UserOrderRepository userOrderRepo,
                                 ProductReviewRepository reviewRepo,
                                 AppUserRepository userRepo,
                                 RealtimeEventService realtimeEventService) {
         this.productRepo = productRepo;
+        this.categoryRepo = categoryRepo;
         this.userOrderRepo = userOrderRepo;
         this.reviewRepo = reviewRepo;
         this.userRepo = userRepo;
         this.realtimeEventService = realtimeEventService;
     }
 
-    // ── PRODUCTS: Browse all (open to any authenticated user) ────────────────
+    // ── CATEGORIES: List for seller product submission ───────────────────────
+    @GetMapping("/categories")
+    public ResponseEntity<ApiResponse<List<Map<String, Object>>>> listCategories() {
+        List<Map<String, Object>> cats = categoryRepo.findAll().stream()
+                .map(c -> Map.<String, Object>of("id", c.getId(), "name", c.getName()))
+                .toList();
+        return ResponseEntity.ok(ApiResponse.ok("Categories loaded", cats));
+    }
+
+    // ── PRODUCTS: Browse approved retail & wholesale marketplace ─────────────
     @GetMapping("/products")
     public ResponseEntity<ApiResponse<List<Map<String, Object>>>> browseProducts() {
-        List<Product> products = productRepo.findAllWithCategory();
-        List<Map<String, Object>> result = products.stream().map(p -> {
-            Double avgRating = reviewRepo.findAverageRatingByProductId(p.getId());
-            long reviewCount = reviewRepo.countByProductId(p.getId());
-            return Map.<String, Object>of(
-                    "id", p.getId(),
-                    "name", p.getName(),
-                    "sku", p.getSku(),
-                    "price", p.getPrice(),
-                    "stockQuantity", p.getStockQuantity(),
-                    "description", p.getDescription() != null ? p.getDescription() : "",
-                    "categoryName", p.getCategory() != null ? p.getCategory().getName() : "",
-                    "avgRating", avgRating != null ? Math.round(avgRating * 10.0) / 10.0 : 0.0,
-                    "reviewCount", reviewCount,
-                    "inStock", p.getStockQuantity() > 0
-            );
-        }).toList();
+        List<Product> products = productRepo.findApprovedWithCategory();
+        List<Map<String, Object>> result = products.stream().map(this::toProductMap).toList();
         return ResponseEntity.ok(ApiResponse.ok("Products loaded", result));
+    }
+
+    // ── SELLER: Submit a wholesale / bulk product listing (pending admin approval)
+    @PostMapping("/products/submit")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> submitProductListing(
+            @RequestBody Map<String, Object> req,
+            Authentication auth) {
+
+        String sellerEmail = auth.getName();
+        AppUser seller = userRepo.findByEmailIgnoreCase(sellerEmail)
+                .orElseThrow(() -> new IllegalArgumentException("User not found"));
+
+        String name = String.valueOf(req.getOrDefault("name", "")).trim();
+        if (name.isBlank()) {
+            return ResponseEntity.badRequest().body(ApiResponse.error("Product name is required."));
+        }
+        Long categoryId = req.get("categoryId") != null ? ((Number) req.get("categoryId")).longValue() : null;
+        Category category = categoryId != null
+                ? categoryRepo.findById(categoryId).orElseThrow(() -> new IllegalArgumentException("Category not found"))
+                : categoryRepo.findAll().stream().findFirst().orElseThrow(() -> new IllegalArgumentException("No categories available"));
+
+        BigDecimal price = new BigDecimal(String.valueOf(req.getOrDefault("price", "0")));
+        if (price.compareTo(BigDecimal.ZERO) <= 0) {
+            return ResponseEntity.badRequest().body(ApiResponse.error("Price must be greater than 0."));
+        }
+        BigDecimal wholesalePrice = req.get("wholesalePrice") != null && !String.valueOf(req.get("wholesalePrice")).isBlank()
+                ? new BigDecimal(String.valueOf(req.get("wholesalePrice")))
+                : price.multiply(new BigDecimal("0.85"));
+
+        int stock = ((Number) req.getOrDefault("stockQuantity", 100)).intValue();
+        int moq = Math.max(1, ((Number) req.getOrDefault("moq", 1)).intValue());
+        int bulkMinQty = Math.max(moq, ((Number) req.getOrDefault("bulkMinQty", 10)).intValue());
+        String unitType = String.valueOf(req.getOrDefault("unitType", "pcs")).trim();
+        String originCountry = String.valueOf(req.getOrDefault("originCountry", "India")).trim();
+        String description = String.valueOf(req.getOrDefault("description", "")).trim();
+        boolean negotiable = Boolean.parseBoolean(String.valueOf(req.getOrDefault("negotiable", true)));
+
+        String sku = "B2B-" + Long.toHexString(System.currentTimeMillis()).toUpperCase();
+
+        Product p = new Product();
+        p.setName(name);
+        p.setSku(sku);
+        p.setPrice(price);
+        p.setWholesalePrice(wholesalePrice);
+        p.setStockQuantity(Math.max(1, stock));
+        p.setMoq(moq);
+        p.setBulkMinQty(bulkMinQty);
+        p.setUnitType(unitType.isBlank() ? "pcs" : unitType);
+        p.setOriginCountry(originCountry.isBlank() ? "India" : originCountry);
+        p.setCategory(category);
+        p.setDescription(description);
+        p.setSellerEmail(sellerEmail);
+        p.setSellerName(seller.getFullName());
+        p.setNegotiable(negotiable);
+        // Admin/Owner listings auto-approve; user/supplier listings require Admin Accept/Reject
+        p.setApprovalStatus("ADMIN".equalsIgnoreCase(seller.getRole()) ? "APPROVED" : "PENDING");
+        productRepo.save(p);
+
+        realtimeEventService.publish("PRODUCT_SUBMITTED",
+                "New wholesale listing pending approval: " + p.getName() + " by " + seller.getFullName(),
+                seller.getFullName());
+
+        return ResponseEntity.ok(ApiResponse.ok(
+                "APPROVED".equals(p.getApprovalStatus())
+                        ? "Product published to marketplace"
+                        : "Product submitted! Waiting for Admin approval.",
+                toProductMap(p)));
+    }
+
+    // ── SELLER: View my submitted listings ──────────────────────────────────
+    @GetMapping("/products/my-listings")
+    public ResponseEntity<ApiResponse<List<Map<String, Object>>>> getMyListings(Authentication auth) {
+        List<Product> list = productRepo.findBySellerEmailWithCategory(auth.getName());
+        return ResponseEntity.ok(ApiResponse.ok("My listings loaded", list.stream().map(this::toProductMap).toList()));
+    }
+
+    // ── ADMIN: View product approval queue ──────────────────────────────────
+    @GetMapping("/admin/products/approvals")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> getProductApprovals() {
+        List<Product> pending = productRepo.findByApprovalStatusWithCategory("PENDING");
+        List<Product> rejected = productRepo.findByApprovalStatusWithCategory("REJECTED");
+        List<Product> approved = productRepo.findByApprovalStatusWithCategory("APPROVED");
+        return ResponseEntity.ok(ApiResponse.ok("Approval queue loaded", Map.of(
+                "pending", pending.stream().map(this::toProductMap).toList(),
+                "rejected", rejected.stream().map(this::toProductMap).toList(),
+                "approvedCount", approved.size(),
+                "pendingCount", pending.size()
+        )));
+    }
+
+    // ── ADMIN: Accept (Approve) a product listing ───────────────────────────
+    @PutMapping("/admin/products/{id}/approve")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> approveProduct(@PathVariable Long id) {
+        Product p = productRepo.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Product not found"));
+        p.setApprovalStatus("APPROVED");
+        p.setRejectionReason(null);
+        productRepo.save(p);
+        realtimeEventService.publish("PRODUCT_APPROVED", "Product approved: " + p.getName(), "Admin");
+        return ResponseEntity.ok(ApiResponse.ok("Product approved and live in marketplace", toProductMap(p)));
+    }
+
+    // ── ADMIN: Reject a product listing ─────────────────────────────────────
+    @PutMapping("/admin/products/{id}/reject")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> rejectProduct(
+            @PathVariable Long id,
+            @RequestBody(required = false) Map<String, String> req) {
+        Product p = productRepo.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Product not found"));
+        p.setApprovalStatus("REJECTED");
+        p.setRejectionReason(req != null ? req.getOrDefault("reason", "Does not meet marketplace standards") : "Rejected by Admin");
+        productRepo.save(p);
+        realtimeEventService.publish("PRODUCT_REJECTED", "Product rejected: " + p.getName(), "Admin");
+        return ResponseEntity.ok(ApiResponse.ok("Product rejected", toProductMap(p)));
+    }
+
+    private Map<String, Object> toProductMap(Product p) {
+        Double avgRating = reviewRepo.findAverageRatingByProductId(p.getId());
+        long reviewCount = reviewRepo.countByProductId(p.getId());
+        Map<String, Object> m = new HashMap<>();
+        m.put("id", p.getId());
+        m.put("name", p.getName());
+        m.put("sku", p.getSku());
+        m.put("price", p.getPrice());
+        m.put("wholesalePrice", p.getWholesalePrice() != null ? p.getWholesalePrice() : p.getPrice().multiply(new BigDecimal("0.85")));
+        m.put("moq", p.getMoq());
+        m.put("bulkMinQty", p.getBulkMinQty());
+        m.put("unitType", p.getUnitType());
+        m.put("originCountry", p.getOriginCountry());
+        m.put("sellerEmail", p.getSellerEmail() != null ? p.getSellerEmail() : "ADMIN_SUPPORT");
+        m.put("sellerName", p.getSellerName());
+        m.put("approvalStatus", p.getApprovalStatus());
+        m.put("rejectionReason", p.getRejectionReason() != null ? p.getRejectionReason() : "");
+        m.put("negotiable", p.isNegotiable());
+        m.put("stockQuantity", p.getStockQuantity());
+        m.put("description", p.getDescription() != null ? p.getDescription() : "");
+        m.put("categoryName", p.getCategory() != null ? p.getCategory().getName() : "");
+        m.put("avgRating", avgRating != null ? Math.round(avgRating * 10.0) / 10.0 : 0.0);
+        m.put("reviewCount", reviewCount);
+        m.put("inStock", p.getStockQuantity() > 0);
+        return m;
     }
 
     // ── REVIEWS: Get reviews for a product ───────────────────────────────────
@@ -163,21 +304,32 @@ public class UserPortalController {
         int quantity = ((Number) req.getOrDefault("quantity", 1)).intValue();
         String paymentMethod = (String) req.getOrDefault("paymentMethod", "COD");
         String shippingAddress = (String) req.getOrDefault("shippingAddress", "");
+        String buyerCountry = String.valueOf(req.getOrDefault("buyerCountry", "India")).trim();
+        if (buyerCountry.isBlank()) buyerCountry = "India";
         String notes = (String) req.getOrDefault("notes", "");
 
         Product product = productRepo.findById(productId)
                 .orElseThrow(() -> new IllegalArgumentException("Product not found"));
 
-        if (product.getStockQuantity() < quantity) {
+        if (quantity < product.getMoq()) {
             return ResponseEntity.badRequest().body(ApiResponse.error(
-                    "Only " + product.getStockQuantity() + " units available."));
+                    "Minimum order quantity (MOQ) for this product is " + product.getMoq() + " " + product.getUnitType() + "."));
         }
 
-        BigDecimal unitPrice = product.getPrice();
+        if (product.getStockQuantity() < quantity) {
+            return ResponseEntity.badRequest().body(ApiResponse.error(
+                    "Only " + product.getStockQuantity() + " " + product.getUnitType() + " available."));
+        }
+
+        boolean isWholesale = quantity >= product.getBulkMinQty();
+        BigDecimal unitPrice = (isWholesale && product.getWholesalePrice() != null)
+                ? product.getWholesalePrice()
+                : product.getPrice();
         BigDecimal totalAmount = unitPrice.multiply(BigDecimal.valueOf(quantity));
 
         // Generate order ref
-        String orderRef = "UO-" + LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd"))
+        String orderRef = (isWholesale ? "UO-BULK-" : "UO-")
+                + LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd"))
                 + "-" + String.format("%05d", orderCounter.incrementAndGet() % 100000);
 
         UserOrder order = new UserOrder();
@@ -190,18 +342,24 @@ public class UserPortalController {
         order.setTotalAmount(totalAmount);
         order.setPaymentMethod(paymentMethod);
         order.setShippingAddress(shippingAddress);
+        order.setBuyerCountry(buyerCountry);
+        order.setBuyerRegion(mapCountryToRegion(buyerCountry));
+        order.setOrderType(isWholesale ? "WHOLESALE" : "RETAIL");
         order.setNotes(notes);
-        order.setStatus("COD".equals(paymentMethod) ? "PENDING" : "PENDING");
+        order.setStatus("PENDING");
         userOrderRepo.save(order);
 
         realtimeEventService.publish("USER_ORDER",
-                "New user order: " + orderRef + " — " + product.getName() + " by " + user.getFullName(),
+                "New " + order.getOrderType() + " order: " + orderRef + " (" + quantity + " " + product.getUnitType() + ", " + buyerCountry + ")",
                 user.getFullName());
 
         return ResponseEntity.ok(ApiResponse.ok("Order placed successfully", Map.of(
                 "orderId", order.getId(),
                 "orderRef", orderRef,
+                "orderType", order.getOrderType(),
+                "unitPrice", unitPrice,
                 "totalAmount", totalAmount,
+                "buyerCountry", buyerCountry,
                 "status", order.getStatus()
         )));
     }
@@ -242,11 +400,29 @@ public class UserPortalController {
             m.put("totalAmount", o.getTotalAmount());
             m.put("paymentMethod", o.getPaymentMethod());
             m.put("status", o.getStatus());
+            m.put("orderType", o.getOrderType());
+            m.put("buyerCountry", o.getBuyerCountry());
+            m.put("buyerRegion", o.getBuyerRegion());
             m.put("shippingAddress", o.getShippingAddress() != null ? o.getShippingAddress() : "");
             m.put("notes", o.getNotes() != null ? o.getNotes() : "");
             m.put("createdAt", o.getCreatedAt().toString());
             return m;
         }).toList()));
+    }
+
+    public static String mapCountryToRegion(String country) {
+        if (country == null) return "Global";
+        String c = country.trim().toLowerCase();
+        if (c.contains("india") || c.contains("pakistan") || c.contains("bangladesh") || c.contains("sri lanka") || c.contains("nepal")) return "South Asia";
+        if (c.contains("uae") || c.contains("emirates") || c.contains("saudi") || c.contains("kuwait") || c.contains("qatar") || c.contains("oman") || c.contains("bahrain")) return "Middle East";
+        if (c.contains("usa") || c.contains("united states") || c.contains("canada") || c.contains("mexico")) return "North America";
+        if (c.contains("uk") || c.contains("united kingdom") || c.contains("germany") || c.contains("france") || c.contains("italy") || c.contains("spain") || c.contains("netherlands")) return "Europe";
+        if (c.contains("china") || c.contains("japan") || c.contains("korea") || c.contains("taiwan") || c.contains("hong kong")) return "East Asia";
+        if (c.contains("singapore") || c.contains("malaysia") || c.contains("thailand") || c.contains("vietnam") || c.contains("indonesia") || c.contains("philippines")) return "Southeast Asia";
+        if (c.contains("australia") || c.contains("new zealand")) return "Oceania";
+        if (c.contains("nigeria") || c.contains("kenya") || c.contains("south africa") || c.contains("egypt")) return "Africa";
+        if (c.contains("brazil") || c.contains("argentina") || c.contains("chile") || c.contains("colombia")) return "South America";
+        return "Global";
     }
 
     // ── ADMIN: Get all user orders ────────────────────────────────────────────

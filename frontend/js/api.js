@@ -320,6 +320,18 @@ const SalesAPI = {
         return json.data || [];
     },
 
+    async getRegionalSales() {
+        const res = await fetch(`${API_BASE}/analytics/regional-sales`, { headers: this.getAuthHeaders() });
+        const json = await res.json();
+        return json.data || [];
+    },
+
+    async getBehaviorAnalytics() {
+        const res = await fetch(`${API_BASE}/analytics/behavior`, { headers: this.getAuthHeaders() });
+        const json = await res.json();
+        return json.data || {};
+    },
+
     // 6. CSV Report Exports (Blob-based direct client download)
     async downloadBlob(url, filename) {
         const res = await fetch(url, { method: 'GET', mode: 'cors', headers: this.getAuthHeaders() });

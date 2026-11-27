@@ -31,6 +31,37 @@ public class Product {
     @Column(columnDefinition = "TEXT")
     private String description;
 
+    // ── B2B Wholesale & Global Marketplace Fields ─────────────────────────────
+    @Column(name = "moq", nullable = false)
+    private Integer moq = 1; // Minimum Order Quantity for bulk/wholesale
+
+    @Column(name = "wholesale_price", precision = 10, scale = 2)
+    private BigDecimal wholesalePrice; // Discounted unit price when qty >= bulkMinQty
+
+    @Column(name = "bulk_min_qty")
+    private Integer bulkMinQty = 10;
+
+    @Column(name = "unit_type", length = 30)
+    private String unitType = "pcs"; // pcs, boxes, kg, cartons, sets
+
+    @Column(name = "origin_country", length = 100)
+    private String originCountry = "India";
+
+    @Column(name = "seller_email", length = 150)
+    private String sellerEmail; // null = platform/admin owned
+
+    @Column(name = "seller_name", length = 120)
+    private String sellerName = "Platform Direct";
+
+    @Column(name = "approval_status", nullable = false, length = 20)
+    private String approvalStatus = "APPROVED"; // PENDING, APPROVED, REJECTED
+
+    @Column(name = "rejection_reason", length = 255)
+    private String rejectionReason;
+
+    @Column(name = "negotiable", nullable = false)
+    private boolean negotiable = true;
+
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
 
@@ -82,4 +113,34 @@ public class Product {
 
     public LocalDateTime getCreatedAt() { return createdAt; }
     public LocalDateTime getUpdatedAt() { return updatedAt; }
+
+    public Integer getMoq() { return moq != null ? moq : 1; }
+    public void setMoq(Integer moq) { this.moq = moq; }
+
+    public BigDecimal getWholesalePrice() { return wholesalePrice; }
+    public void setWholesalePrice(BigDecimal wholesalePrice) { this.wholesalePrice = wholesalePrice; }
+
+    public Integer getBulkMinQty() { return bulkMinQty != null ? bulkMinQty : 10; }
+    public void setBulkMinQty(Integer bulkMinQty) { this.bulkMinQty = bulkMinQty; }
+
+    public String getUnitType() { return unitType != null ? unitType : "pcs"; }
+    public void setUnitType(String unitType) { this.unitType = unitType; }
+
+    public String getOriginCountry() { return originCountry != null ? originCountry : "India"; }
+    public void setOriginCountry(String originCountry) { this.originCountry = originCountry; }
+
+    public String getSellerEmail() { return sellerEmail; }
+    public void setSellerEmail(String sellerEmail) { this.sellerEmail = sellerEmail; }
+
+    public String getSellerName() { return sellerName != null ? sellerName : "Platform Direct"; }
+    public void setSellerName(String sellerName) { this.sellerName = sellerName; }
+
+    public String getApprovalStatus() { return approvalStatus != null ? approvalStatus : "APPROVED"; }
+    public void setApprovalStatus(String approvalStatus) { this.approvalStatus = approvalStatus; }
+
+    public String getRejectionReason() { return rejectionReason; }
+    public void setRejectionReason(String rejectionReason) { this.rejectionReason = rejectionReason; }
+
+    public boolean isNegotiable() { return negotiable; }
+    public void setNegotiable(boolean negotiable) { this.negotiable = negotiable; }
 }

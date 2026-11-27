@@ -53,6 +53,18 @@ public class AnalyticsController {
         return ResponseEntity.ok(ApiResponse.ok("Top products retrieved successfully", list));
     }
 
+    @GetMapping("/regional-sales")
+    public ResponseEntity<ApiResponse<List<Map<String, Object>>>> getRegionalSales() {
+        List<Map<String, Object>> list = analyticsService.getRegionalSales();
+        return ResponseEntity.ok(ApiResponse.ok("Regional sales retrieved successfully", list));
+    }
+
+    @GetMapping("/behavior")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> getBehaviorAnalytics() {
+        Map<String, Object> data = analyticsService.getBehaviorAnalytics();
+        return ResponseEntity.ok(ApiResponse.ok("Buyer & wholesale behavior analytics retrieved", data));
+    }
+
     @GetMapping(value = "/export/sales-csv", produces = "text/csv")
     public ResponseEntity<byte[]> exportSalesCsv() {
         byte[] data = reportExportService.exportSalesToCsv();

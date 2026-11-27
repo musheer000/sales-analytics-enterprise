@@ -56,4 +56,11 @@ public interface SaleRepository extends JpaRepository<Sale, Long> {
            "GROUP BY p.id, p.name " +
            "ORDER BY SUM(si.quantity) DESC")
     List<Object[]> findTopSellingProducts();
+
+    @Query("SELECT COALESCE(c.country, 'Unknown'), COUNT(s), COALESCE(SUM(s.totalAmount), 0) " +
+           "FROM Sale s JOIN s.customer c " +
+           "WHERE s.status = 'COMPLETED' " +
+           "GROUP BY COALESCE(c.country, 'Unknown') " +
+           "ORDER BY SUM(s.totalAmount) DESC")
+    List<Object[]> findRevenueByCountry();
 }

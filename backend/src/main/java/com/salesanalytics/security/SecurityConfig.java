@@ -56,6 +56,7 @@ public class SecurityConfig {
                 .requestMatchers("/api/analytics/**").hasRole("ADMIN")
                 // User-role endpoints (authenticated users, any role)
                 .requestMatchers("/api/user/**").authenticated()
+                .requestMatchers("/api/wholesale/**").authenticated()
                 .requestMatchers("/api/chat/**").authenticated()
                 // Admin-only CRUD endpoints
                 .requestMatchers(HttpMethod.GET, "/api/**").hasAnyRole("ADMIN", "USER")

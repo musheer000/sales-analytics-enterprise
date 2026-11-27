@@ -244,6 +244,7 @@ function initNavigation() {
       closeMobileSidebar();
       if (tab === 'analytics') renderAnalyticsCharts();
       if (tab === 'support-chat') loadAdminSupportData();
+      if (tab === 'approvals') loadAdminApprovalsTab();
     });
   });
 }
@@ -1073,6 +1074,73 @@ function renderAnalyticsCharts() {
       }
     });
   }
+
+  renderRegionalAndBehaviorAnalytics(gridColor, tickColor);
+}
+
+let analyticsRegionalChartInstance = null;
+async function renderRegionalAndBehaviorAnalytics(gridColor, tickColor) {
+  try {
+    const [regional, behavior] = await Promise.all([
+      SalesAPI.getRegionalSales().catch(() => []),
+      SalesAPI.getBehaviorAnalytics().catch(() => ({}))
+    ]);
+
+    const regEl = document.getElementById('analyticsRegionalChart');
+    if (regEl && window.Chart) {
+      if (analyticsRegionalChartInstance) analyticsRegionalChartInstance.destroy();
+      const labels = regional.length ? regional.slice(0, 8).map(r => `${r.country} (${r.region})`) : ['No Data'];
+      const data = regional.length ? regional.slice(0, 8).map(r => (Number(r.revenue) || 0) * getCurrencyConfig().rate) : [0];
+      analyticsRegionalChartInstance = new Chart(regEl.getContext('2d'), {
+        type: 'bar',
+        data: { labels, datasets: [{ label: `Revenue (${currentCurrency})`, data, backgroundColor: '#34C759', borderRadius: 6 }] },
+        options: {
+          indexAxis: 'y',
+          responsive: true, maintainAspectRatio: false,
+          plugins: { legend: { display: false } },
+          scales: { x: { grid: { color: gridColor }, ticks: { color: tickColor } }, y: { grid: { display: false }, ticks: { color: tickColor } } }
+        }
+      });
+    }
+
+    const tbody = document.getElementById('regionalSalesTableBody');
+    if (tbody) {
+      tbody.innerHTML = regional.length ? regional.map(r => `
+        <tr>
+          <td><strong>🌍 ${escapeHtml(r.country)}</strong></td>
+          <td>${escapeHtml(r.region)}</td>
+          <td>${Number(r.orders || 0)}</td>
+          <td>${Number(r.units || 0)}</td>
+          <td style="font-weight:700;color:var(--accent)">${formatCurrency(r.revenue || 0)}</td>
+        </tr>
+      `).join('') : '<tr><td colspan="5" class="empty-cell">No regional sales recorded yet.</td></tr>';
+    }
+
+    const behEl = document.getElementById('behaviorInsightsBox');
+    if (behEl && behavior) {
+      const convRate = behavior.totalQuotes > 0 ? Math.round((behavior.acceptedQuotes / behavior.totalQuotes) * 100) : 0;
+      behEl.innerHTML = `
+        <div class="stat-mini-box" style="background:var(--bg-elevated,rgba(255,255,255,0.04));padding:12px;border-radius:10px;">
+          <div style="font-size:11px;color:var(--text-muted)">WHOLESALE ORDERS</div>
+          <div style="font-size:20px;font-weight:800;color:#5856D6">${behavior.wholesaleOrders || 0} <span style="font-size:12px">(${behavior.wholesaleUnits || 0} units)</span></div>
+          <div style="font-size:12px;color:var(--text-muted)">${formatCurrency(behavior.wholesaleRevenue || 0)}</div>
+        </div>
+        <div class="stat-mini-box" style="background:var(--bg-elevated,rgba(255,255,255,0.04));padding:12px;border-radius:10px;">
+          <div style="font-size:11px;color:var(--text-muted)">RETAIL ORDERS</div>
+          <div style="font-size:20px;font-weight:800;color:#007AFF">${behavior.retailOrders || 0} <span style="font-size:12px">(${behavior.retailUnits || 0} units)</span></div>
+          <div style="font-size:12px;color:var(--text-muted)">${formatCurrency(behavior.retailRevenue || 0)}</div>
+        </div>
+        <div class="stat-mini-box" style="background:var(--bg-elevated,rgba(255,255,255,0.04));padding:12px;border-radius:10px;">
+          <div style="font-size:11px;color:var(--text-muted)">RFQ NEGOTIATIONS</div>
+          <div style="font-size:20px;font-weight:800;color:#34C759">${behavior.totalQuotes || 0} <span style="font-size:12px">(${convRate}% won)</span></div>
+        </div>
+        <div class="stat-mini-box" style="background:var(--bg-elevated,rgba(255,255,255,0.04));padding:12px;border-radius:10px;">
+          <div style="font-size:11px;color:var(--text-muted)">PENDING APPROVALS</div>
+          <div style="font-size:20px;font-weight:800;color:#FF9500">${behavior.pendingProductApprovals || 0}</div>
+        </div>
+      `;
+    }
+  } catch (_) {}
 }
 
 // ─── Top Products ────────────────────────────────────────────────────────────
@@ -1907,11 +1975,23 @@ async function loadAdminChatInbox() {
     }
     const json = await res.json();
     const threads = json.data?.threads || [];
+    const b2bThreads = json.data?.b2bThreads || [];
     const totalUnread = json.data?.totalUnread || 0;
     const badge = document.getElementById('adminChatBadge');
     if (badge) {
       badge.style.display = totalUnread > 0 ? 'inline-block' : 'none';
       badge.textContent = totalUnread;
+    }
+
+    const b2bEl = document.getElementById('adminB2bThreads');
+    if (b2bEl) {
+      b2bEl.innerHTML = b2bThreads.length ? b2bThreads.map(b => `
+        <div class="chat-thread-item" onclick="openAdminB2bThread('${escapeHtml(b.emailA)}','${escapeHtml(b.emailB)}')">
+          <div style="font-size:12px;font-weight:700;">🤝 ${escapeHtml(b.emailA)} ↔ ${escapeHtml(b.emailB)}</div>
+          ${b.productName ? `<div style="font-size:11px;color:var(--accent);">📦 ${escapeHtml(b.productName)}</div>` : ''}
+          <div style="font-size:11.5px;color:var(--text-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(b.latestMessage || '')}</div>
+        </div>
+      `).join('') : '<div class="empty-cell" style="padding:16px;">No B2B buyer-seller chats yet.</div>';
     }
     if (!threads.length) {
       container.innerHTML = '<div class="empty-cell" style="padding:24px;">No customer conversations yet.</div>';
@@ -2028,3 +2108,130 @@ window.updateStoreOrderStatus = async function (id, status) {
     loadAdminStoreOrders();
   } catch (e) { showToast(e.message, 'error'); }
 };
+
+// ─── Admin B2B Chat Oversight, Product Approvals & Wholesale RFQs ────────────
+window.openAdminB2bThread = async function (emailA, emailB) {
+  document.getElementById('activeChatUserTitle').textContent = `B2B Chat: ${emailA} ↔ ${emailB}`;
+  document.getElementById('activeChatUserEmail').textContent = 'Admin Oversight View (Read-Only)';
+  const input = document.getElementById('adminChatReplyInput');
+  const btn = document.getElementById('adminChatSendBtn');
+  if (input) input.disabled = true;
+  if (btn) btn.disabled = true;
+
+  const box = document.getElementById('adminChatMessages');
+  try {
+    const res = await fetch(`${API_BASE}/chat/admin/b2b-thread?emailA=${encodeURIComponent(emailA)}&emailB=${encodeURIComponent(emailB)}`, {
+      headers: SalesAPI.getAuthHeaders()
+    });
+    const json = await res.json();
+    const msgs = json.data || [];
+    box.innerHTML = msgs.length ? msgs.map(m => `
+      <div class="admin-msg-bubble ${m.senderEmail === emailA ? 'from-user' : 'from-admin'}">
+        <div style="font-size:11px;font-weight:700;opacity:0.85;">${escapeHtml(m.senderName)} (${escapeHtml(m.senderEmail)})</div>
+        ${m.productName ? `<div style="font-size:11px;opacity:0.8;margin:2px 0;">📦 ${escapeHtml(m.productName)}</div>` : ''}
+        <div>${escapeHtml(m.message)}</div>
+        <div style="font-size:10px;opacity:0.65;margin-top:3px;">${new Date(m.createdAt).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})}</div>
+      </div>
+    `).join('') : '<div class="empty-cell" style="padding:30px;">No messages in this B2B thread.</div>';
+    box.scrollTop = box.scrollHeight;
+  } catch (_) {}
+};
+
+async function loadAdminApprovalsTab() {
+  await Promise.all([loadAdminApprovals(), loadAdminWholesaleQuotes()]);
+}
+
+async function loadAdminApprovals() {
+  const tbody = document.getElementById('adminApprovalsBody');
+  if (!tbody) return;
+  try {
+    const res = await fetch(`${API_BASE}/user/admin/products/approvals`, { headers: SalesAPI.getAuthHeaders() });
+    if (!res.ok) {
+      tbody.innerHTML = '<tr><td colspan="7" class="empty-cell">Sign in as Admin to review product listings.</td></tr>';
+      return;
+    }
+    const json = await res.json();
+    const pending = json.data?.pending || [];
+    const rejected = json.data?.rejected || [];
+    const badge = document.getElementById('pendingApprovalsBadge');
+    if (badge) {
+      badge.style.display = pending.length > 0 ? 'inline-block' : 'none';
+      badge.textContent = pending.length;
+    }
+    const sumEl = document.getElementById('approvalsSummary');
+    if (sumEl) sumEl.textContent = `${pending.length} pending approval • ${json.data?.approvedCount || 0} live in marketplace`;
+
+    const allRows = [...pending, ...rejected];
+    if (!allRows.length) {
+      tbody.innerHTML = '<tr><td colspan="7" class="empty-cell">No pending or rejected seller listings.</td></tr>';
+      return;
+    }
+    tbody.innerHTML = allRows.map(p => `
+      <tr>
+        <td><strong>${escapeHtml(p.name)}</strong><br><span style="font-size:11px;color:var(--text-muted);">${escapeHtml(p.categoryName)}</span></td>
+        <td>${escapeHtml(p.sellerName)}<br><span style="font-size:11px;color:var(--text-muted);">${escapeHtml(p.sellerEmail)}</span></td>
+        <td>🌍 ${escapeHtml(p.originCountry)}</td>
+        <td>$${Number(p.price).toFixed(2)} / <strong>$${Number(p.wholesalePrice).toFixed(2)}</strong></td>
+        <td>MOQ ${p.moq} ${escapeHtml(p.unitType)} · Stock ${p.stockQuantity}</td>
+        <td><span class="kpi-badge ${p.approvalStatus === 'PENDING' ? 'warning' : 'negative'}">${p.approvalStatus}</span></td>
+        <td style="white-space:nowrap">
+          <button class="btn btn-sm btn-primary" style="padding:4px 10px;font-size:12px;" onclick="approveListing(${p.id})">✓ Accept</button>
+          ${p.approvalStatus === 'PENDING' ? `<button class="btn btn-sm btn-secondary" style="padding:4px 10px;font-size:12px;color:#FF3B30;" onclick="rejectListing(${p.id})">✕ Reject</button>` : ''}
+        </td>
+      </tr>
+    `).join('');
+  } catch (_) {}
+}
+
+window.approveListing = async function (id) {
+  try {
+    const res = await fetch(`${API_BASE}/user/admin/products/${id}/approve`, {
+      method: 'PUT', headers: SalesAPI.getAuthHeaders()
+    });
+    if (!res.ok) throw new Error('Failed to approve product');
+    showToast('Product approved and published! ✅', 'success');
+    loadAdminApprovals();
+  } catch (e) { showToast(e.message, 'error'); }
+};
+
+window.rejectListing = async function (id) {
+  const reason = prompt('Enter rejection reason (optional):') || 'Does not meet marketplace standards';
+  try {
+    const res = await fetch(`${API_BASE}/user/admin/products/${id}/reject`, {
+      method: 'PUT',
+      headers: SalesAPI.getAuthHeaders({ 'Content-Type': 'application/json' }),
+      body: JSON.stringify({ reason })
+    });
+    if (!res.ok) throw new Error('Failed to reject product');
+    showToast('Product rejected', 'info');
+    loadAdminApprovals();
+  } catch (e) { showToast(e.message, 'error'); }
+};
+
+async function loadAdminWholesaleQuotes() {
+  const tbody = document.getElementById('adminRfqBody');
+  if (!tbody) return;
+  try {
+    const res = await fetch(`${API_BASE}/wholesale/quotes/admin`, { headers: SalesAPI.getAuthHeaders() });
+    if (!res.ok) return;
+    const json = await res.json();
+    const quotes = json.data || [];
+    if (!quotes.length) {
+      tbody.innerHTML = '<tr><td colspan="7" class="empty-cell">No wholesale RFQ negotiations yet.</td></tr>';
+      return;
+    }
+    tbody.innerHTML = quotes.map(q => `
+      <tr>
+        <td><code>${escapeHtml(q.quoteRef)}</code></td>
+        <td><strong>${escapeHtml(q.productName)}</strong></td>
+        <td>${escapeHtml(q.buyerName)} (🌍 ${escapeHtml(q.buyerCountry)})</td>
+        <td>${escapeHtml(q.sellerName)}</td>
+        <td>${q.requestedQty} ${escapeHtml(q.unitType || 'pcs')}</td>
+        <td>$${Number(q.proposedUnitPrice).toFixed(2)} ${q.agreedUnitPrice ? '→ <strong>$' + Number(q.agreedUnitPrice).toFixed(2) + '</strong>' : ''}</td>
+        <td><span class="kpi-badge ${q.status === 'ACCEPTED' || q.status === 'ORDERED' ? 'positive' : 'warning'}">${q.status}</span></td>
+      </tr>
+    `).join('');
+  } catch (_) {}
+}
+
+document.getElementById('refreshApprovalsBtn')?.addEventListener('click', loadAdminApprovalsTab);

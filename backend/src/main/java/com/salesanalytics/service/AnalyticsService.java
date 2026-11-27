@@ -12,4 +12,6 @@ public interface AnalyticsService {
     List<CategorySalesDTO> getSalesByCategory();
     List<MonthlyRevenueDTO> getMonthlyRevenueTrends();
     List<Map<String, Object>> getTopProducts();
+    List<Map<String, Object>> getRegionalSales();
+    Map<String, Object> getBehaviorAnalytics();
 }

@@ -1,19 +1,23 @@
 package com.salesanalytics.controller;
 
 import com.salesanalytics.dto.ApiResponse;
-import com.salesanalytics.entity.ChatMessage;
 import com.salesanalytics.entity.AppUser;
-import com.salesanalytics.repository.ChatMessageRepository;
+import com.salesanalytics.entity.ChatMessage;
 import com.salesanalytics.repository.AppUserRepository;
+import com.salesanalytics.repository.ChatMessageRepository;
 import com.salesanalytics.service.RealtimeEventService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
+/**
+ * Direct Messaging Microservice Module (/api/chat/**).
+ * Supports private 1-on-1 Buyer <-> Seller chats (only visible to participants + Admin oversight)
+ * as well as direct User <-> Admin support threads.
+ */
 @RestController
 @RequestMapping("/api/chat")
 @CrossOrigin(origins = "*")
@@ -31,7 +35,7 @@ public class ChatController {
         this.realtimeEventService = realtimeEventService;
     }
 
-    // ── USER: Send a message to admin ────────────────────────────────────────
+    // ── SEND MESSAGE (Private 1-on-1 DM to Seller/Buyer OR Admin Support) ─────
     @PostMapping("/send")
     public ResponseEntity<ApiResponse<Map<String, Object>>> sendMessage(
             @RequestBody Map<String, Object> req,
@@ -49,6 +53,11 @@ public class ChatController {
         String messageType = (String) req.getOrDefault("messageType", "TEXT");
         Object productIdObj = req.get("productId");
         String productName = (String) req.getOrDefault("productName", "");
+        String recipientEmail = (String) req.getOrDefault("recipientEmail", "");
+        if (recipientEmail != null) recipientEmail = recipientEmail.trim();
+        if ("ADMIN_SUPPORT".equalsIgnoreCase(recipientEmail)) {
+            recipientEmail = "";
+        }
 
         ChatMessage msg = new ChatMessage();
         msg.setSenderEmail(senderEmail);
@@ -56,85 +65,200 @@ public class ChatController {
         msg.setSenderRole(sender.getRole());
         msg.setMessage(messageText.trim());
         msg.setMessageType(messageType);
-        if (productIdObj != null) {
+        if (productIdObj != null && !String.valueOf(productIdObj).isBlank()) {
             msg.setProductId(((Number) productIdObj).longValue());
             msg.setProductName(productName);
         }
-        // USER messages go to admin (no specific recipient = admin inbox)
-        if ("ADMIN".equals(sender.getRole())) {
-            // Admin replying: set recipient
-            String recipientEmail = (String) req.getOrDefault("recipientEmail", "");
-            if (!recipientEmail.isBlank()) msg.setRecipientEmail(recipientEmail);
+        if (recipientEmail != null && !recipientEmail.isBlank()) {
+            msg.setRecipientEmail(recipientEmail);
         }
         chatRepo.save(msg);
 
-        // Push real-time notification via SSE
         realtimeEventService.publish("CHAT_MESSAGE",
                 "New message from " + sender.getFullName() + ": " + (messageText.length() > 60 ? messageText.substring(0, 60) + "…" : messageText),
                 sender.getFullName());
 
-        return ResponseEntity.ok(ApiResponse.ok("Message sent", Map.of(
-                "id", msg.getId(),
-                "senderName", sender.getFullName(),
-                "senderRole", sender.getRole(),
-                "message", msg.getMessage(),
-                "createdAt", msg.getCreatedAt().toString()
-        )));
+        return ResponseEntity.ok(ApiResponse.ok("Message sent", toMap(msg)));
     }
 
-    // ── USER: Get own chat thread ─────────────────────────────────────────────
+    // ── USER: Get list of my private 1-on-1 conversations ─────────────────────
+    @GetMapping("/conversations")
+    public ResponseEntity<ApiResponse<List<Map<String, Object>>>> getMyConversations(Authentication auth) {
+        String myEmail = auth.getName().toLowerCase();
+        List<ChatMessage> all = chatRepo.findAllForUser(myEmail);
+
+        Map<String, Map<String, Object>> convos = new LinkedHashMap<>();
+        // Always include Admin Support channel
+        Map<String, Object> adminSlot = new HashMap<>();
+        adminSlot.put("peerEmail", "ADMIN_SUPPORT");
+        adminSlot.put("peerName", "Admin & Platform Support");
+        adminSlot.put("isAdminSupport", true);
+        adminSlot.put("latestMessage", "Ask admin about orders, approvals, or bulk deals");
+        adminSlot.put("latestTime", "");
+        adminSlot.put("unreadCount", 0L);
+        adminSlot.put("productId", "");
+        adminSlot.put("productName", "");
+        convos.put("ADMIN_SUPPORT", adminSlot);
+
+        for (ChatMessage m : all) {
+            boolean isSupport = (m.getRecipientEmail() == null || m.getRecipientEmail().isBlank())
+                    || "ADMIN".equalsIgnoreCase(m.getSenderRole());
+            String peerKey;
+            String peerName;
+
+            if (isSupport && (m.getRecipientEmail() == null || m.getRecipientEmail().isBlank() || m.getSenderRole().equalsIgnoreCase("ADMIN"))) {
+                // Support thread with Admin
+                peerKey = "ADMIN_SUPPORT";
+                peerName = "Admin & Platform Support";
+                Map<String, Object> existing = convos.get(peerKey);
+                if (existing.get("latestTime").toString().isEmpty()) {
+                    existing.put("latestMessage", m.getMessage());
+                    existing.put("latestTime", m.getCreatedAt().toString());
+                }
+                if (!m.isRead() && "ADMIN".equalsIgnoreCase(m.getSenderRole()) && m.getRecipientEmail() != null && m.getRecipientEmail().equalsIgnoreCase(myEmail)) {
+                    existing.put("unreadCount", ((Long) existing.get("unreadCount")) + 1L);
+                }
+                continue;
+            }
+
+            if (m.getSenderEmail().equalsIgnoreCase(myEmail)) {
+                peerKey = m.getRecipientEmail().toLowerCase();
+                AppUser peer = userRepo.findByEmailIgnoreCase(peerKey).orElse(null);
+                peerName = peer != null ? peer.getFullName() : peerKey;
+            } else {
+                peerKey = m.getSenderEmail().toLowerCase();
+                peerName = m.getSenderName();
+            }
+
+            Map<String, Object> slot = convos.computeIfAbsent(peerKey, k -> {
+                Map<String, Object> s = new HashMap<>();
+                s.put("peerEmail", k);
+                s.put("peerName", peerName);
+                s.put("isAdminSupport", false);
+                s.put("latestMessage", m.getMessage());
+                s.put("latestTime", m.getCreatedAt().toString());
+                s.put("unreadCount", 0L);
+                s.put("productId", m.getProductId() != null ? m.getProductId() : "");
+                s.put("productName", m.getProductName() != null ? m.getProductName() : "");
+                return s;
+            });
+            if (!m.isRead() && m.getRecipientEmail() != null && m.getRecipientEmail().equalsIgnoreCase(myEmail)) {
+                slot.put("unreadCount", ((Long) slot.get("unreadCount")) + 1L);
+            }
+        }
+
+        return ResponseEntity.ok(ApiResponse.ok("Conversations loaded", new ArrayList<>(convos.values())));
+    }
+
+    // ── USER: Get private 1-on-1 DM messages with a specific peer (or Admin Support)
+    @GetMapping("/dm")
+    public ResponseEntity<ApiResponse<List<Map<String, Object>>>> getPrivateDm(
+            @RequestParam(required = false, defaultValue = "ADMIN_SUPPORT") String peerEmail,
+            Authentication auth) {
+        String myEmail = auth.getName();
+        List<ChatMessage> msgs;
+        if (peerEmail == null || peerEmail.isBlank() || "ADMIN_SUPPORT".equalsIgnoreCase(peerEmail)) {
+            msgs = chatRepo.findSupportThreadByUserEmail(myEmail);
+        } else {
+            msgs = chatRepo.findPrivateDmThread(myEmail, peerEmail.trim());
+        }
+        return ResponseEntity.ok(ApiResponse.ok("Private thread loaded", msgs.stream().map(this::toMap).toList()));
+    }
+
+    // ── USER: Legacy support thread endpoint (kept for backward compatibility) ─
     @GetMapping("/thread")
     public ResponseEntity<ApiResponse<List<Map<String, Object>>>> getMyThread(Authentication auth) {
         String email = auth.getName();
-        List<ChatMessage> msgs = chatRepo.findThreadByUserEmail(email);
+        List<ChatMessage> msgs = chatRepo.findSupportThreadByUserEmail(email);
         return ResponseEntity.ok(ApiResponse.ok("Thread loaded", msgs.stream().map(this::toMap).toList()));
     }
 
-    // ── USER: Mark messages from admin as read ────────────────────────────────
+    // ── USER: Mark private DM messages as read ────────────────────────────────
     @PostMapping("/mark-read")
-    public ResponseEntity<ApiResponse<Void>> markRead(Authentication auth) {
-        String email = auth.getName();
-        List<ChatMessage> unread = chatRepo.findThreadByUserEmail(email).stream()
-                .filter(m -> !m.isRead() && "ADMIN".equals(m.getSenderRole()))
-                .toList();
+    public ResponseEntity<ApiResponse<Void>> markRead(
+            @RequestParam(required = false, defaultValue = "ADMIN_SUPPORT") String peerEmail,
+            Authentication auth) {
+        String myEmail = auth.getName();
+        List<ChatMessage> unread;
+        if (peerEmail == null || peerEmail.isBlank() || "ADMIN_SUPPORT".equalsIgnoreCase(peerEmail)) {
+            unread = chatRepo.findSupportThreadByUserEmail(myEmail).stream()
+                    .filter(m -> !m.isRead() && "ADMIN".equalsIgnoreCase(m.getSenderRole()))
+                    .toList();
+        } else {
+            unread = chatRepo.findPrivateDmThread(myEmail, peerEmail.trim()).stream()
+                    .filter(m -> !m.isRead() && !m.getSenderEmail().equalsIgnoreCase(myEmail))
+                    .toList();
+        }
         unread.forEach(m -> m.setRead(true));
         chatRepo.saveAll(unread);
         return ResponseEntity.ok(ApiResponse.ok("Marked as read", null));
     }
 
-    // ── ADMIN: Get all user threads (inbox) ───────────────────────────────────
+    // ── ADMIN: Get all support threads + B2B buyer-seller negotiation threads ─
     @GetMapping("/admin/inbox")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<ApiResponse<Map<String, Object>>> getAdminInbox() {
         List<String> userEmails = chatRepo.findDistinctUserSenders();
         long unreadTotal = chatRepo.countUnreadForAdmin();
         List<Map<String, Object>> threads = userEmails.stream().map(email -> {
-            List<ChatMessage> msgs = chatRepo.findThreadByUserEmail(email);
+            List<ChatMessage> msgs = chatRepo.findSupportThreadByUserEmail(email);
             ChatMessage latest = msgs.isEmpty() ? null : msgs.get(msgs.size() - 1);
             AppUser u = userRepo.findByEmailIgnoreCase(email).orElse(null);
             long unread = msgs.stream().filter(m -> !m.isRead() && "USER".equals(m.getSenderRole())).count();
-            return Map.<String, Object>of(
-                    "userEmail", email,
-                    "userName", u != null ? u.getFullName() : email,
-                    "unreadCount", unread,
-                    "latestMessage", latest != null ? latest.getMessage() : "",
-                    "latestTime", latest != null ? latest.getCreatedAt().toString() : "",
-                    "messageCount", msgs.size()
-            );
+            Map<String, Object> t = new HashMap<>();
+            t.put("userEmail", email);
+            t.put("userName", u != null ? u.getFullName() : email);
+            t.put("unreadCount", unread);
+            t.put("latestMessage", latest != null ? latest.getMessage() : "");
+            t.put("latestTime", latest != null ? latest.getCreatedAt().toString() : "");
+            t.put("messageCount", msgs.size());
+            return t;
         }).toList();
+
+        // Also build B2B Buyer <-> Seller direct chat pairs for Admin oversight
+        List<ChatMessage> allMsgs = chatRepo.findAllByOrderByCreatedAtDesc();
+        Map<String, Map<String, Object>> b2bPairs = new LinkedHashMap<>();
+        for (ChatMessage m : allMsgs) {
+            if (m.getRecipientEmail() == null || m.getRecipientEmail().isBlank()) continue;
+            if ("ADMIN".equalsIgnoreCase(m.getSenderRole())) continue;
+            String a = m.getSenderEmail().toLowerCase();
+            String b = m.getRecipientEmail().toLowerCase();
+            String pairKey = a.compareTo(b) < 0 ? a + "|" + b : b + "|" + a;
+            b2bPairs.computeIfAbsent(pairKey, k -> {
+                String[] parts = k.split("\\|");
+                Map<String, Object> p = new HashMap<>();
+                p.put("emailA", parts[0]);
+                p.put("emailB", parts[1]);
+                p.put("latestMessage", m.getMessage());
+                p.put("productName", m.getProductName() != null ? m.getProductName() : "");
+                p.put("latestTime", m.getCreatedAt().toString());
+                return p;
+            });
+        }
+
         return ResponseEntity.ok(ApiResponse.ok("Admin inbox", Map.of(
                 "threads", threads,
+                "b2bThreads", new ArrayList<>(b2bPairs.values()),
                 "totalUnread", unreadTotal
         )));
     }
 
-    // ── ADMIN: Get specific user thread ──────────────────────────────────────
+    // ── ADMIN: Inspect any B2B Buyer <-> Seller thread ────────────────────────
+    @GetMapping("/admin/b2b-thread")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<ApiResponse<List<Map<String, Object>>>> getB2bThread(
+            @RequestParam String emailA,
+            @RequestParam String emailB) {
+        List<ChatMessage> msgs = chatRepo.findPrivateDmThread(emailA, emailB);
+        return ResponseEntity.ok(ApiResponse.ok("B2B thread loaded", msgs.stream().map(this::toMap).toList()));
+    }
+
+    // ── ADMIN: Get specific user support thread ───────────────────────────────
     @GetMapping("/admin/thread/{userEmail}")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<ApiResponse<List<Map<String, Object>>>> getUserThread(
             @PathVariable String userEmail) {
-        List<ChatMessage> msgs = chatRepo.findThreadByUserEmail(userEmail);
-        // Mark user messages as read
+        List<ChatMessage> msgs = chatRepo.findSupportThreadByUserEmail(userEmail);
         msgs.stream().filter(m -> !m.isRead() && "USER".equals(m.getSenderRole()))
                 .forEach(m -> m.setRead(true));
         chatRepo.saveAll(msgs);
@@ -147,8 +271,8 @@ public class ChatController {
     public ResponseEntity<ApiResponse<Map<String, Object>>> adminReply(
             @RequestBody Map<String, String> req, Authentication auth) {
         String adminEmail = auth.getName();
-        AppUser admin = userRepo.findByEmailIgnoreCase(adminEmail)
-                .orElseThrow(() -> new IllegalArgumentException("Admin not found"));
+        AppUser admin = userRepo.findByEmailIgnoreCase(adminEmail).orElse(null);
+        String adminName = admin != null ? admin.getFullName() + " (Admin)" : "Platform Admin";
 
         String recipientEmail = req.getOrDefault("recipientEmail", "").trim();
         String messageText = req.getOrDefault("message", "").trim();
@@ -158,7 +282,7 @@ public class ChatController {
 
         ChatMessage reply = new ChatMessage();
         reply.setSenderEmail(adminEmail);
-        reply.setSenderName(admin.getFullName() + " (Admin)");
+        reply.setSenderName(adminName);
         reply.setSenderRole("ADMIN");
         reply.setRecipientEmail(recipientEmail);
         reply.setMessage(messageText);
@@ -167,7 +291,7 @@ public class ChatController {
 
         realtimeEventService.publish("ADMIN_REPLY",
                 "Admin replied to " + recipientEmail + ": " + (messageText.length() > 60 ? messageText.substring(0, 60) + "…" : messageText),
-                admin.getFullName());
+                adminName);
 
         return ResponseEntity.ok(ApiResponse.ok("Reply sent", toMap(reply)));
     }
@@ -185,17 +309,18 @@ public class ChatController {
     }
 
     private Map<String, Object> toMap(ChatMessage m) {
-        return Map.of(
-                "id", m.getId(),
-                "senderEmail", m.getSenderEmail(),
-                "senderName", m.getSenderName(),
-                "senderRole", m.getSenderRole(),
-                "message", m.getMessage(),
-                "messageType", m.getMessageType(),
-                "productId", m.getProductId() != null ? m.getProductId() : "",
-                "productName", m.getProductName() != null ? m.getProductName() : "",
-                "read", m.isRead(),
-                "createdAt", m.getCreatedAt().toString()
-        );
+        Map<String, Object> map = new HashMap<>();
+        map.put("id", m.getId());
+        map.put("senderEmail", m.getSenderEmail());
+        map.put("senderName", m.getSenderName());
+        map.put("senderRole", m.getSenderRole());
+        map.put("recipientEmail", m.getRecipientEmail() != null ? m.getRecipientEmail() : "");
+        map.put("message", m.getMessage());
+        map.put("messageType", m.getMessageType());
+        map.put("productId", m.getProductId() != null ? m.getProductId() : "");
+        map.put("productName", m.getProductName() != null ? m.getProductName() : "");
+        map.put("read", m.isRead());
+        map.put("createdAt", m.getCreatedAt() != null ? m.getCreatedAt().toString() : "");
+        return map;
     }
 }
