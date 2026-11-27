@@ -361,6 +361,29 @@ public class AuthController {
         )));
     }
 
+    // ── EMERGENCY: Unlock admin accounts (public, one-time secret token only) ─
+    // Used to reset in-memory + DB lockouts without needing a valid JWT.
+    // Secret: "UNLOCK_ADMIN_NOW_2024" — change after use.
+    @PostMapping("/admin/emergency-unlock")
+    public ResponseEntity<ApiResponse<String>> emergencyUnlock(@RequestBody Map<String, String> req) {
+        String secret = req.getOrDefault("secret", "");
+        if (!"UNLOCK_ADMIN_NOW_2024".equals(secret)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(ApiResponse.error("Invalid secret."));
+        }
+        // Clear all in-memory lockouts
+        builtInLocks.clear();
+        // Reset DB-level lockout for the owner email
+        userRepository.findByEmailIgnoreCase(ownerEmail).ifPresent(u -> {
+            u.resetFailedAttempts();
+            userRepository.save(u);
+        });
+        // Also unlock all admin users in DB
+        userRepository.findAll().stream()
+                .filter(u -> "ADMIN".equalsIgnoreCase(u.getRole()))
+                .forEach(u -> { u.resetFailedAttempts(); userRepository.save(u); });
+        return ResponseEntity.ok(ApiResponse.ok("All admin accounts unlocked. Login now.", "UNLOCKED"));
+    }
+
     private String formatLockMessage(long remainingSeconds) {
         long minutes = remainingSeconds / 60;
         long seconds = remainingSeconds % 60;
