@@ -5,6 +5,7 @@ import com.salesanalytics.entity.*;
 import com.salesanalytics.repository.*;
 import com.salesanalytics.service.MarketplaceAlgorithmService;
 import com.salesanalytics.service.RealtimeEventService;
+import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
@@ -321,6 +322,7 @@ public class UserPortalController {
 
     // ── ORDERS: Place a new order ─────────────────────────────────────────────
     @PostMapping("/orders")
+    @CacheEvict(value = {"analyticsSummary", "categorySales", "monthlyRevenue", "products"}, allEntries = true)
     public ResponseEntity<ApiResponse<Map<String, Object>>> placeOrder(
             @RequestBody Map<String, Object> req,
             Authentication auth) {
@@ -380,6 +382,7 @@ public class UserPortalController {
         order.setNotes(notes);
         order.setStatus("PENDING");
         userOrderRepo.save(order);
+        syncOrderToErp(order, user);
 
         realtimeEventService.publish("USER_ORDER",
                 "New " + order.getOrderType() + " order: " + orderRef + " (" + quantity + " " + product.getUnitType() + ", " + buyerCountry + ")",
@@ -398,6 +401,7 @@ public class UserPortalController {
 
     // ── ORDERS: Confirm payment (Razorpay callback) ───────────────────────────
     @PostMapping("/orders/{orderRef}/confirm-payment")
+    @CacheEvict(value = {"analyticsSummary", "categorySales", "monthlyRevenue", "products"}, allEntries = true)
     public ResponseEntity<ApiResponse<Map<String, Object>>> confirmPayment(
             @PathVariable String orderRef,
             @RequestBody Map<String, String> req) {
@@ -409,6 +413,7 @@ public class UserPortalController {
         order.setRazorpayPaymentId(req.getOrDefault("razorpay_payment_id", ""));
         order.setStatus("PAID");
         userOrderRepo.save(order);
+        syncOrderToErp(order, userRepo.findByEmailIgnoreCase(order.getUserEmail()).orElse(null));
 
         return ResponseEntity.ok(ApiResponse.ok("Payment confirmed", Map.of(
                 "orderRef", orderRef,
@@ -462,6 +467,12 @@ public class UserPortalController {
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<ApiResponse<Map<String, Object>>> getAllUserOrders() {
         List<UserOrder> orders = userOrderRepo.findAllByOrderByCreatedAtDesc();
+        // Auto-sync any store orders not yet mirrored in ERP Sales & Customers
+        for (UserOrder o : orders) {
+            if (saleRepo.findByOrderNumber(o.getOrderRef()).isEmpty()) {
+                syncOrderToErp(o, userRepo.findByEmailIgnoreCase(o.getUserEmail()).orElse(null));
+            }
+        }
         long pending = userOrderRepo.countByStatus("PENDING");
         long paid = userOrderRepo.countByStatus("PAID");
         return ResponseEntity.ok(ApiResponse.ok("All user orders", Map.of(
@@ -486,6 +497,7 @@ public class UserPortalController {
     // ── ADMIN: Update order status ────────────────────────────────────────────
     @PutMapping("/admin/orders/{id}/status")
     @PreAuthorize("hasRole('ADMIN')")
+    @CacheEvict(value = {"analyticsSummary", "categorySales", "monthlyRevenue", "products"}, allEntries = true)
     public ResponseEntity<ApiResponse<Void>> updateOrderStatus(
             @PathVariable Long id,
             @RequestBody Map<String, String> req) {
@@ -494,15 +506,59 @@ public class UserPortalController {
         String nextStatus = req.getOrDefault("status", order.getStatus()).toUpperCase();
         order.setStatus(nextStatus);
         userOrderRepo.save(order);
+        syncOrderToErp(order, userRepo.findByEmailIgnoreCase(order.getUserEmail()).orElse(null));
         realtimeEventService.publish("ORDER_STATUS",
                 "Order " + order.getOrderRef() + " is now " + nextStatus,
                 order.getUserName());
         return ResponseEntity.ok(ApiResponse.ok("Order status updated to " + nextStatus, null));
     }
 
+    /**
+     * Mirrors a Customer Portal UserOrder into the Admin ERP Customer + Sale + SaleItem tables
+     * so Dashboard KPIs, Sales & Orders, Customers, and Regional Analytics reflect store orders.
+     */
+    private void syncOrderToErp(UserOrder order, AppUser user) {
+        Customer customer = customerRepo.findByEmail(order.getUserEmail()).orElseGet(() -> {
+            String full = order.getUserName() != null ? order.getUserName().trim() : "Store Customer";
+            String[] parts = full.split("\\s+", 2);
+            String first = parts[0];
+            String last = parts.length > 1 ? parts[1] : "-";
+            String phone = user != null && user.getPhone() != null ? user.getPhone() : "";
+            String country = order.getBuyerCountry() != null && !order.getBuyerCountry().isBlank()
+                    ? order.getBuyerCountry() : "India";
+            return customerRepo.save(new Customer(first, last, order.getUserEmail(), phone, "", country));
+        });
+
+        String saleStatus = switch (order.getStatus() != null ? order.getStatus().toUpperCase() : "PENDING") {
+            case "PAID", "APPROVED", "ORDERED", "SHIPPED", "DELIVERED", "COMPLETED" -> "COMPLETED";
+            case "CANCELLED" -> "CANCELLED";
+            default -> "PENDING";
+        };
+
+        Sale sale = saleRepo.findByOrderNumber(order.getOrderRef()).orElse(null);
+        if (sale == null) {
+            sale = new Sale();
+            sale.setOrderNumber(order.getOrderRef());
+            sale.setCustomer(customer);
+            sale.setOrderDate(order.getCreatedAt() != null ? order.getCreatedAt() : LocalDateTime.now());
+            sale.setTotalAmount(order.getTotalAmount());
+            sale.setPaymentMethod(order.getPaymentMethod() != null ? order.getPaymentMethod() : "DIRECT_QR_SCANNER");
+            sale.setStatus(saleStatus);
+            sale.setNotes((order.getOrderType() != null ? order.getOrderType() : "RETAIL")
+                    + " · " + (order.getBuyerCountry() != null ? order.getBuyerCountry() : "India"));
+            SaleItem item = new SaleItem(sale, order.getProduct(), order.getQuantity(), order.getUnitPrice(), order.getTotalAmount());
+            sale.addItem(item);
+            saleRepo.save(sale);
+        } else {
+            sale.setStatus(saleStatus);
+            saleRepo.save(sale);
+        }
+    }
+
     // ── ADMIN: Clear all demo/sample data (requires explicit confirmation) ────
     @PostMapping("/admin/clear-all-data")
     @PreAuthorize("hasRole('ADMIN')")
+    @CacheEvict(value = {"analyticsSummary", "categorySales", "monthlyRevenue", "products", "categories"}, allEntries = true)
     public ResponseEntity<ApiResponse<String>> clearAllData(@RequestBody Map<String, String> req) {
         if (!"CLEAR_ALL_DATA".equals(req.get("confirm"))) {
             return ResponseEntity.badRequest().body(ApiResponse.error("Confirmation token CLEAR_ALL_DATA required."));

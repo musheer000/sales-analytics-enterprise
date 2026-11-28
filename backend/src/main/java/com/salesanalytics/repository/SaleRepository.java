@@ -11,9 +11,12 @@ import org.springframework.stereotype.Repository;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 
 @Repository
 public interface SaleRepository extends JpaRepository<Sale, Long> {
+
+    Optional<Sale> findByOrderNumber(String orderNumber);
 
     Page<Sale> findAll(Pageable pageable);
 
