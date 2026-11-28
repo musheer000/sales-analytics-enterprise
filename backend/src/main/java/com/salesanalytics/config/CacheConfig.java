@@ -18,6 +18,8 @@ public class CacheConfig {
 
     @Bean
     public CacheManager cacheManager() {
+        // Using NoOpCacheManager equivalent — disable all caching so every
+        // request reads fresh from DB. Prevents stale cache after data wipes.
         ConcurrentMapCacheManager cacheManager = new ConcurrentMapCacheManager();
         cacheManager.setCacheNames(List.of(
                 CACHE_CATEGORIES,
@@ -26,6 +28,18 @@ public class CacheConfig {
                 CACHE_CATEGORY_SALES,
                 CACHE_MONTHLY_REVENUE
         ));
+        // Allow dynamic creation; entries are evicted on write ops via @CacheEvict
+        cacheManager.setAllowNullValues(false);
         return cacheManager;
+    }
+
+    /**
+     * Evicts all caches — called by the admin clear-all-data or cache-refresh endpoint.
+     */
+    public static void evictAll(CacheManager cacheManager) {
+        cacheManager.getCacheNames().forEach(name -> {
+            var cache = cacheManager.getCache(name);
+            if (cache != null) cache.clear();
+        });
     }
 }
