@@ -1332,6 +1332,11 @@ function saveBuyerProductNote() {
   renderProducts(allProducts);
 }
 
+function starsHtml(r) {
+  const n = Math.max(0, Math.min(5, Math.round(Number(r) || 0)));
+  return '★'.repeat(n) + '☆'.repeat(5 - n);
+}
+
 function renderProducts(products) {
   const grid = document.getElementById('productsGrid');
   if (!products.length) {
