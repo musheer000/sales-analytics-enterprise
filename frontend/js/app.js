@@ -218,7 +218,8 @@ function initNavigation() {
     sales: 'Sales & Orders',
     customers: 'Customers',
     analytics: 'Advanced Reports',
-    'support-chat': 'Customer Chat & Store Orders'
+    'support-chat': 'Customer Chat & Store Orders',
+    approvals: 'Approvals & Wholesale'
   };
   const sidebar = document.getElementById('sidebar');
   const backdrop = document.getElementById('sidebarBackdrop');

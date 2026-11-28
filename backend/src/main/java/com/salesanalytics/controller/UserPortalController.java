@@ -465,6 +465,7 @@ public class UserPortalController {
     // ── ADMIN: Get all user orders ────────────────────────────────────────────
     @GetMapping("/admin/orders")
     @PreAuthorize("hasRole('ADMIN')")
+    @CacheEvict(value = {"analyticsSummary", "categorySales", "monthlyRevenue", "products"}, allEntries = true)
     public ResponseEntity<ApiResponse<Map<String, Object>>> getAllUserOrders() {
         List<UserOrder> orders = userOrderRepo.findAllByOrderByCreatedAtDesc();
         // Auto-sync any store orders not yet mirrored in ERP Sales & Customers
